@@ -1,0 +1,69 @@
+<div class="col-md-6 offset-md-3">
+    <h2 id="update-student-header"><Strong>Update Student</Strong></h2>
+    <form (ngSubmit)="onSubmit()">
+        <div class="form-group">
+            <label class="user-label">Parent Name</label>
+            <input type="text" class="form-control user-input" id="parentName" [(ngModel)]="student.parentName" name="parentName">
+        </div>
+        <div class="form-group">
+            <label class="user-label">Student Name</label>
+            <input type="text" class="form-control user-input" id="studentName" [(ngModel)]="student.studentName"
+                name="studentName">
+        </div>
+        <div class="form-group">
+            <label class="user-label">Student Register Number</label>
+            <input type="text" class="form-control user-input" id="studentRegisterNumber"
+                [(ngModel)]="student.studentRegisterNumber" name="studentRegisterNumber">
+        </div>
+        <div class="form-group">
+            <label class="user-label">Address</label>
+            <input type="text" class="form-control user-input" id="address" [(ngModel)]="student.address" name="address">
+        </div>
+        <div class="form-group">
+            <label class="user-label">Age</label>
+            <input type="text" class="form-control user-input" id="age" [(ngModel)]="student.age" name="age">
+        </div>
+        <div class="form-group">
+            <label class="user-label">State</label>
+            <input type="text" class="form-control user-input" id="state" [(ngModel)]="student.state" name="state">
+        </div>
+        <div class="form-group">
+            <label class="user-label">Country</label>
+            <input type="text" class="form-control user-input" id="country" [(ngModel)]="student.country" name="country">
+        </div>
+        <div class="form-group">
+            <label class="user-label">City</label>
+            <input type="text" class="form-control user-input" id="city" [(ngModel)]="student.city" name="city">
+        </div>
+        <div class="form-group">
+            <label class="user-label">Zip Code</label>
+            <input type="text" class="form-control user-input" id="zipCode" [(ngModel)]="student.zipCode" name="zipCode">
+        </div>
+        <div class="form-group">
+            <label class="user-label">Email Address</label>
+            <input type="text" class="form-control user-input" id="emailAddress" [(ngModel)]="student.emailAddress"
+                name="emailAddress">
+        </div>
+        <div class="form-group">
+            <label class="user-label">Primary Contact Person</label>
+            <input type="text" class="form-control user-input" id="primaryContactPerson" [(ngModel)]="student.primaryContactPerson"
+                name="primaryContactPerson">
+        </div>
+        <div class="form-group">
+            <label class="user-label">Primary Contact Person Mobile</label>
+            <input type="text" class="form-control user-input" id="primaryContactPersonMobile"
+                [(ngModel)]="student.primaryContactPersonMobile" name="primaryContactPersonMobile">
+        </div>
+        <div class="form-group">
+            <label class="user-label">Secondary Contact Person</label>
+            <input type="text" class="form-control user-input" id="secondaryContactPerson"
+                [(ngModel)]="student.secondaryContactPerson" name="secondaryContactPerson">
+        </div>
+        <div class="form-group">
+            <label class="user-label">Secondary Contact Person Mobile</label>
+            <input type="text" class="form-control user-input" id="secondaryContactPersonMobile"
+                [(ngModel)]="student.secondaryContactPersonMobile" name="secondaryContactPersonMobile">
+        </div>
+        <button class="submit-btn btn " type="submit">Submit</button>
+    </form>
+</div>

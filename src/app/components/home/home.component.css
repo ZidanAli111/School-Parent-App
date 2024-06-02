@@ -1,0 +1,56 @@
+:host {
+  display: block;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  background: url('/assets/images/home.jpg') no-repeat center center;
+  background-size: cover;
+}
+ 
+.parent {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  width: 100%;
+ /* Semi-transparent background */
+}
+ 
+.home-container {
+  text-align: center;
+  padding: 50px;
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 10);
+  max-width: 600px;
+  background-color: rgba(207, 204, 204, 0.692);
+  margin: 50px auto;
+}
+ 
+h1 {
+  color: #f3f3f3;
+  margin-bottom: 30px;
+  font-family: sans-serif;
+}
+ 
+.button-container {
+  display: flex;
+  justify-content: space-around;
+}
+ 
+button {
+  background-color: #a4a4a4;
+  color: rgb(255, 254, 254);
+  border: none;
+  padding: 15px 32px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  font-size: 16px;
+  border-radius: 8px;
+  background-color: rgba(0, 0, 0, 0.6);
+  transition: background-color 0.3s ease;
+}
+ 
+button:hover {
+  background-color: #c8c9c8;
+}

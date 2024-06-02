@@ -1,0 +1,24 @@
+<div class="circular-container">
+    <h2 id="circular-list">Circulars</h2>
+    <table class=" circular-table table table-bordered table-hover">
+        <thead class="table-dark">
+            <tr class="row-header">
+                <th>Staff Name</th>
+                <th>Information Text</th>
+                <th>Notification Date</th>
+                <th>Notification Posted By</th>
+                <th>circularStatus</th>
+            </tr>
+        </thead>
+        <tbody class="table-success">
+            <tr *ngFor="let circular of circulars">
+                <td>{{circular.staff}}</td>
+                <td>{{circular.informationText}}</td>
+                <td>{{circular.notificationDate}}</td>
+                <td>{{circular.notificationPostedBy}}</td>
+                <td>{{circular.circularStatus}}</td>
+            </tr>
+        </tbody>
+    </table>
+    <button class="btn submit-btn" (click)="navigateToAdmin(true)" type="submit">Submit</button>
+</div>

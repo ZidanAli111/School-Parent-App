@@ -1,0 +1,31 @@
+<div class="col-md-6 offset-md-3">
+    <h2 id="create-circular-header">Create Circular</h2>
+    <form (ngSubmit)="onSubmit()">
+        <div class="form-group">
+            <label class="user-label">Staff Name</label>
+            <input type="text" class="form-control user-input" id="staffName" [(ngModel)]="circular.staff"
+                name="staffName">
+        </div>
+        <div class="form-group">
+            <label class="user-label">Information Text</label>
+            <input type="text" class="form-control user-input" id="informationText"
+                [(ngModel)]="circular.informationText" name="informationText">
+        </div>
+        <div class="form-group">
+            <label class="user-label">notification Date</label>
+            <input type="text" class="form-control user-input" id="notificationDate"
+                [(ngModel)]="circular.notificationDate" name="notificationDate">
+        </div>
+        <div class="form-group">
+            <label class="user-label">Notification Posted By</label>
+            <input type="text" class="form-control user-input" id="notificationPostedBy"
+                [(ngModel)]="circular.notificationPostedBy" name="notificationPostedBy">
+        </div>
+        <div class="form-group">
+            <label class="user-label">Circular Status</label>
+            <input type="text" class="form-control user-input" id="circularStatus" [(ngModel)]="circular.circularStatus"
+                name="circularStatus">
+        </div>
+        <button class="btn submit-btn" (click)="saveCirculars()" type="submit">DONE</button>
+    </form>
+</div>

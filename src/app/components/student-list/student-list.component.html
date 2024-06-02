@@ -1,0 +1,56 @@
+<div class="parent-container">
+    <h2 id="student-list">Student List</h2>
+    <table class=" student-table table table-bordered table-hover">
+        <thead class="table-dark">
+            <tr class="row-header">
+                <th>Parent Name</th>
+                <th>Student Name</th>
+                <th>Email Id</th>
+                <th>Age</th>
+                <th>Regn No.</th>
+                <th>Country</th>
+                <th>State</th>
+                <th>City</th>
+                <th>Address</th>
+                <th>Zip Code</th>
+                <th>Primary Contact</th>
+                <th>Primary Mobile</th>
+                <th>Secondary Contact</th>
+                <th>Secondary Mobile</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody class="table-success">
+            <tr *ngFor="let student of students">
+                <td>{{student.parentName}}</td>
+                <td>{{student.studentName}}</td>
+                <td>{{student.emailAddress}}</td>
+                <td>{{student.age}}</td>
+                <td>{{student.studentRegisterNumber}}</td>
+                <td> {{student.country}}</td>
+                <td>{{student.state}}</td>
+                <td>{{student.city}}</td>
+                <td>{{student.address}}</td>
+                <td>{{student.zipCode}}</td>
+                <td>{{student.primaryContactPerson}}</td>
+                <td>{{student.primaryContactPersonMobile}}</td>
+                <td>{{student.secondaryContactPerson}}</td>
+                <td>{{student.secondaryContactPersonMobile}}</td>
+                <td>
+                    <button *ngIf="isAdmin" (click)="updateStudent(student.parentId)" class="admin-check-btn btn"
+                        [ngClass]="{'btn-approved': approvalStatus[student.parentId]}">
+                        {{approvalStatus[student.parentId] ? 'APPROVED' : 'REVIEW'}}
+                    </button>
+                    <button *ngIf="!isAdmin" (click)="updateStudent(student.parentId)"
+                        class="btn update-btn">Update</button>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    <div class="circular-btn-container">
+        <button *ngIf="isAdmin" (click)="navigateToAddCircular()" class="admin-add-circular-btn btn">Add
+            Circular</button>
+        <button *ngIf="isAdmin" (click)="navigateToCircular()" class="admin-circular-btn btn"> Circular</button>
+    </div>
+
+</div>
