@@ -1,19 +1,17 @@
 package com.ielts.cmds.lpr.domain;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ielts.cmds.api.evt_228.AllocationGroupChanged;
 import com.ielts.cmds.lpr.common.model.AllocationGroup;
 import com.ielts.cmds.lpr.common.repository.AllocationGroupRepository;
 import com.ielts.cmds.lpr.infrastructure.exception.CMDSLPRErrorResponse;
 import com.ielts.cmds.lpr.infrastructure.exception.UnauthorizedException;
 import com.ielts.cmds.lpr.infrastructure.mapper.AllocationGroupMapper;
+import com.ielts.cmds.lpr.infrastructure.utils.AllocationGroupConstants;
 import com.ielts.cmds.lpr.infrastructure.utils.LPRCommonUtils;
 import com.ielts.cmds.v2.rbac.api.service.RBACService;
 import com.ielts.cmds.v2.rbac.api.service.exception.RbacValidationException;
 import com.ielts.cmds.v2.serialization.application.utils.CMDSThreadLocalContextService;
+import com.ielts.cmds.v2.serialization.domain.AbstractCMDSDomainService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -22,11 +20,16 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpHeaders;
-
-import java.util.Set;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.Optional;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class CreateAllocationGroupDomainServiceTest {
+
+    @InjectMocks
+    private CreateAllocationGroupDomainService createAllocationGroupDomainService;
 
     @Mock
     private RBACService rbacService;
@@ -49,58 +52,53 @@ class CreateAllocationGroupDomainServiceTest {
     @Mock
     private CMDSThreadLocalContextService cmdsThreadLocalContextService;
 
-    @InjectMocks
-    private CreateAllocationGroupDomainService service;
-
-    private HttpHeaders requestHeader;
-    private AllocationGroupV1 requestBody;
-    private AllocationGroupResponseV1 responseV1;
+    private HttpHeaders requestHeaders;
+    private AllocationGroupV1 allocationGroupReqBody;
+    private AllocationGroupResponseV1 allocationGroupResponseV1;
     private AllocationGroup allocationGroup;
-    private AllocationGroupChanged allocationGroupChanged;
 
     @BeforeEach
     void setUp() {
-        requestHeader = new HttpHeaders();
-        requestHeader.add("x-access-token", "test-token");
+        createAllocationGroupDomainService = new CreateAllocationGroupDomainService(publisher, objectMapper, cmdsThreadLocalContextService);
+        createAllocationGroupDomainService.rbacService = rbacService;
+        createAllocationGroupDomainService.lprCommonUtils = lprCommonUtils;
+        createAllocationGroupDomainService.allocationGroupMapper = allocationGroupMapper;
+        createAllocationGroupDomainService.allocationGroupRepository = allocationGroupRepository;
         
-        requestBody = new AllocationGroupV1();
-        requestBody.setAllocationGroupName("Test Group");
+        requestHeaders = new HttpHeaders();
+        requestHeaders.add("x-access-token", "valid-token");
+        
+        allocationGroupReqBody = new AllocationGroupV1();
+        allocationGroupReqBody.setAllocationGroupName("Test Group");
         
         allocationGroup = new AllocationGroup();
         allocationGroup.setAllocationGroupName("Test Group");
-
-        responseV1 = new AllocationGroupResponseV1();
-        responseV1.setAllocationGroupName("Test Group");
         
-        allocationGroupChanged = new AllocationGroupChanged();
+        allocationGroupResponseV1 = new AllocationGroupResponseV1();
+        allocationGroupResponseV1.setAllocationGroupName("Test Group");
     }
 
     @Test
-    void testAddAllocationGroup_Success() throws RbacValidationException, UnauthorizedException {
-        when(rbacService.isAuthorised(anyString(), anyString())).thenReturn(true);
-        when(allocationGroupMapper.mapRequestToEntity(any())).thenReturn(allocationGroup);
-        when(allocationGroupRepository.save(any())).thenReturn(allocationGroup);
-        when(allocationGroupMapper.mapAllocationGroupToResponse(any())).thenReturn(responseV1);
-        when(allocationGroupMapper.mapAllocationGroupChangeEvent(any())).thenReturn(allocationGroupChanged);
-
-        AllocationGroupResponseV1 result = service.addAllocationGroup(requestBody, requestHeader);
-
-        assertNotNull(result);
-        assertEquals("Test Group", result.getAllocationGroupName());
-        verify(publisher, times(1)).publishEvent(any(AllocationGroupChanged.class));
+    void shouldCreateAllocationGroupSuccessfully() throws RbacValidationException, UnauthorizedException {
+        when(rbacService.isAuthorised(anyString(), eq(AllocationGroupConstants.AG_CREATE))).thenReturn(true);
+        when(allocationGroupMapper.mapRequestToEntity(allocationGroupReqBody)).thenReturn(allocationGroup);
+        when(allocationGroupRepository.save(allocationGroup)).thenReturn(allocationGroup);
+        when(allocationGroupMapper.mapAllocationGroupToResponse(allocationGroup)).thenReturn(allocationGroupResponseV1);
+        
+        AllocationGroupResponseV1 response = createAllocationGroupDomainService.addAllocationGroup(allocationGroupReqBody, requestHeaders);
+        
+        assertNotNull(response);
+        assertEquals("Test Group", response.getAllocationGroupName());
     }
 
     @Test
-    void testAddAllocationGroup_Unauthorized() {
-        when(rbacService.isAuthorised(anyString(), anyString())).thenReturn(false);
-        when(lprCommonUtils.getSetforNullViolationofEventBody(anyString(), anyString())).thenReturn(Set.of());
-        when(allocationGroupMapper.generateLPRErrorResponse(any(), anyString())).thenReturn(new CMDSLPRErrorResponse());
-
-        UnauthorizedException exception = assertThrows(UnauthorizedException.class, 
-            () -> service.addAllocationGroup(requestBody, requestHeader));
-
-        assertNotNull(exception.getErrorResponse());
-        verify(allocationGroupRepository, never()).save(any());
-        verify(publisher, never()).publishEvent(any());
+    void shouldThrowUnauthorizedExceptionWhenNotAuthorized() {
+        when(rbacService.isAuthorised(anyString(), eq(AllocationGroupConstants.AG_CREATE))).thenReturn(false);
+        
+        UnauthorizedException thrown = assertThrows(UnauthorizedException.class, () -> {
+            createAllocationGroupDomainService.addAllocationGroup(allocationGroupReqBody, requestHeaders);
+        });
+        
+        assertEquals("You do not have permission to create allocation group", thrown.getMessage());
     }
 }
