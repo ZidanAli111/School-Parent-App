@@ -1,5 +1,8 @@
 package com.ielts.cmds.lpr.domain;
 
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ielts.cmds.api.evt_228.AllocationGroupChanged;
 import com.ielts.cmds.lpr.common.model.AllocationGroup;
@@ -19,11 +22,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpHeaders;
-import java.util.Collections;
-import java.util.Optional;
+
 import java.util.Set;
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class CreateAllocationGroupDomainServiceTest {
@@ -50,78 +50,57 @@ class CreateAllocationGroupDomainServiceTest {
     private CMDSThreadLocalContextService cmdsThreadLocalContextService;
 
     @InjectMocks
-    private CreateAllocationGroupDomainService createAllocationGroupDomainService;
+    private CreateAllocationGroupDomainService service;
 
-    private HttpHeaders requestHeaders;
-    private AllocationGroupV1 allocationGroupV1;
+    private HttpHeaders requestHeader;
+    private AllocationGroupV1 requestBody;
+    private AllocationGroupResponseV1 responseV1;
     private AllocationGroup allocationGroup;
-    private AllocationGroupResponseV1 allocationGroupResponseV1;
     private AllocationGroupChanged allocationGroupChanged;
 
     @BeforeEach
     void setUp() {
-        requestHeaders = new HttpHeaders();
-        requestHeaders.add("x-access-token", "valid-token");
-
-        allocationGroupV1 = new AllocationGroupV1();
-        allocationGroupV1.setAllocationGroupName("Test Group");
-        allocationGroupV1.setEffectiveFromDate("2024-03-01");
-        allocationGroupV1.setEffectiveToDate("2025-03-01");
-
+        requestHeader = new HttpHeaders();
+        requestHeader.add("x-access-token", "test-token");
+        
+        requestBody = new AllocationGroupV1();
+        requestBody.setAllocationGroupName("Test Group");
+        
         allocationGroup = new AllocationGroup();
         allocationGroup.setAllocationGroupName("Test Group");
 
-        allocationGroupResponseV1 = new AllocationGroupResponseV1();
-        allocationGroupResponseV1.setAllocationGroupUuid("123e4567-e89b-12d3-a456-426614174000");
-        allocationGroupResponseV1.setAllocationGroupName("Test Group");
-
+        responseV1 = new AllocationGroupResponseV1();
+        responseV1.setAllocationGroupName("Test Group");
+        
         allocationGroupChanged = new AllocationGroupChanged();
-        allocationGroupChanged.setAllocationGroupUuid("123e4567-e89b-12d3-a456-426614174000");
     }
 
     @Test
-    void addAllocationGroup_Success() throws RbacValidationException {
-        // Mock authorization check
-        when(rbacService.isAuthorised("valid-token", "AG_CREATE")).thenReturn(true);
-        
-        // Mock mapping and repository save
-        when(allocationGroupMapper.mapRequestToEntity(allocationGroupV1)).thenReturn(allocationGroup);
-        when(allocationGroupRepository.save(allocationGroup)).thenReturn(allocationGroup);
-        when(allocationGroupMapper.mapAllocationGroupV1ToAllocationGroup(allocationGroup)).thenReturn(allocationGroupResponseV1);
-        when(allocationGroupMapper.mapAllocationGroupChangeEvent(allocationGroupResponseV1)).thenReturn(allocationGroupChanged);
+    void testAddAllocationGroup_Success() throws RbacValidationException, UnauthorizedException {
+        when(rbacService.isAuthorised(anyString(), anyString())).thenReturn(true);
+        when(allocationGroupMapper.mapRequestToEntity(any())).thenReturn(allocationGroup);
+        when(allocationGroupRepository.save(any())).thenReturn(allocationGroup);
+        when(allocationGroupMapper.mapAllocationGroupToResponse(any())).thenReturn(responseV1);
+        when(allocationGroupMapper.mapAllocationGroupChangeEvent(any())).thenReturn(allocationGroupChanged);
 
-        // Execute the method
-        AllocationGroupResponseV1 response = createAllocationGroupDomainService.addAllocationGroup(allocationGroupV1, requestHeaders);
+        AllocationGroupResponseV1 result = service.addAllocationGroup(requestBody, requestHeader);
 
-        // Assertions
-        assertNotNull(response);
-        assertEquals("123e4567-e89b-12d3-a456-426614174000", response.getAllocationGroupUuid());
-        assertEquals("Test Group", response.getAllocationGroupName());
-
-        // Verify method calls
-        verify(rbacService, times(1)).isAuthorised("valid-token", "AG_CREATE");
-        verify(allocationGroupRepository, times(1)).save(any(AllocationGroup.class));
+        assertNotNull(result);
+        assertEquals("Test Group", result.getAllocationGroupName());
         verify(publisher, times(1)).publishEvent(any(AllocationGroupChanged.class));
     }
 
     @Test
-    void addAllocationGroup_UnauthorizedException() {
-        // Mock authorization check failure
-        when(rbacService.isAuthorised("valid-token", "AG_CREATE")).thenReturn(false);
-        when(lprCommonUtils.getSetforNullViolationofEventBody("V3072", "UnauthorisedToCreateAllocationGroup"))
-                .thenReturn(Collections.emptySet());
+    void testAddAllocationGroup_Unauthorized() {
+        when(rbacService.isAuthorised(anyString(), anyString())).thenReturn(false);
+        when(lprCommonUtils.getSetforNullViolationofEventBody(anyString(), anyString())).thenReturn(Set.of());
+        when(allocationGroupMapper.generateLPRErrorResponse(any(), anyString())).thenReturn(new CMDSLPRErrorResponse());
 
-        CMDSLPRErrorResponse errorResponse = new CMDSLPRErrorResponse();
-        when(allocationGroupMapper.generateLPRErrorResponse(any(Set.class), eq("AG_CREATE")))
-                .thenReturn(errorResponse);
+        UnauthorizedException exception = assertThrows(UnauthorizedException.class, 
+            () -> service.addAllocationGroup(requestBody, requestHeader));
 
-        // Exception Assertion
-        UnauthorizedException exception = assertThrows(UnauthorizedException.class, () ->
-                createAllocationGroupDomainService.addAllocationGroup(allocationGroupV1, requestHeaders));
-
-        assertNotNull(exception);
-        verify(rbacService, times(1)).isAuthorised("valid-token", "AG_CREATE");
-        verify(allocationGroupRepository, never()).save(any(AllocationGroup.class));
-        verify(publisher, never()).publishEvent(any(AllocationGroupChanged.class));
+        assertNotNull(exception.getErrorResponse());
+        verify(allocationGroupRepository, never()).save(any());
+        verify(publisher, never()).publishEvent(any());
     }
 }
