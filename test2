@@ -1,74 +1,117 @@
-package com.ielts.cmds.lpr.infrastructure.utils;
+@ExtendWith(MockitoExtension.class)
+public class CreateAllocationGroupDomainServiceTest {
 
-import com.ielts.cmds.v2.infrastructure.event.context.CMDSHeaderContext;
-import com.ielts.cmds.v2.infrastructure.event.context.ThreadLocalHeaderContext;
-import jakarta.validation.ConstraintViolation;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.mockito.MockedStatic;
-import org.mockito.Mockito;
+    @Mock
+    private RBACService rbacService;
 
-import java.time.LocalDateTime;
-import java.util.Set;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
-
-class LPRCommonUtilsTest {
-
+    @Mock
     private LPRCommonUtils lprCommonUtils;
 
+    @Mock
+    private AllocationGroupMapper allocationGroupMapper;
+
+    @Mock
+    private AllocationGroupRepository allocationGroupRepository;
+
+    @Mock
+    private ApplicationEventPublisher publisher;
+
+    @Mock
+    private ObjectMapper objectMapper;
+
+    @Mock
+    private CMDSThreadLocalContextService cmdsThreadLocalContextService;
+
+    @InjectMocks
+    private CreateAllocationGroupDomainService createAllocationGroupDomainService;
+
+    private HttpHeaders requestHeaders;
+    private AllocationGroupV1 allocationGroupReqBody;
+    private AllocationGroup allocationGroupEntity;
+    private AllocationGroupResponseV1 allocationGroupResponse;
+    private AllocationGroupChanged allocationGroupChangedEvent;
+
     @BeforeEach
-    void setUp() {
-        lprCommonUtils = new LPRCommonUtils();
+    public void setUp() {
+        // Initialize request headers
+        requestHeaders = new HttpHeaders();
+        requestHeaders.add("x-access-token", "valid-token");
+
+        // Initialize request body
+        allocationGroupReqBody = new AllocationGroupV1();
+        allocationGroupReqBody.setAllocationGroupName("Test Group");
+        allocationGroupReqBody.setEffectiveFromDate("2023-10-01");
+        allocationGroupReqBody.setEffectiveToDate("2023-12-31");
+
+        // Initialize entity
+        allocationGroupEntity = AllocationGroup.builder()
+                .allocationGroupName("Test Group")
+                .effectiveFromDate("2023-10-01")
+                .effectiveToDate("2023-12-31")
+                .build();
+
+        // Initialize response
+        allocationGroupResponse = new AllocationGroupResponseV1();
+        allocationGroupResponse.setAllocationGroupUuid("uuid-123");
+        allocationGroupResponse.setAllocationGroupName("Test Group");
+        allocationGroupResponse.setEffectiveFromDate("2023-10-01");
+        allocationGroupResponse.setEffectiveToDate("2023-12-31");
+
+        // Initialize event
+        allocationGroupChangedEvent = new AllocationGroupChanged();
+        allocationGroupChangedEvent.setAllocationGroupUuid("uuid-123");
+        allocationGroupChangedEvent.setAllocationGroupName("Test Group");
+        allocationGroupChangedEvent.setEffectiveFromDate("2023-10-01");
+        allocationGroupChangedEvent.setEffectiveToDate("2023-12-31");
+
+        // Initialize service with mocked dependencies
+        createAllocationGroupDomainService = new CreateAllocationGroupDomainService(
+                publisher, objectMapper, cmdsThreadLocalContextService);
     }
 
     @Test
-    void testGetSetForNullViolationOfEventBody() {
+    public void testAddAllocationGroup_Unauthorized() {
         // Arrange
-        String expectedMessage = "Test message";
-        String expectedPath = "testField";
+        when(rbacService.isAuthorised(anyString(), eq(AllocationGroupConstants.AG_CREATE))).thenReturn(false);
+
+        Set<ConstraintViolation<Object>> violations = Collections.emptySet();
+        when(lprCommonUtils.getSetforNullViolationofEventBody(anyString(), anyString())).thenReturn(violations);
+
+        CMDSLPRErrorResponse errorResponse = new CMDSLPRErrorResponse();
+        when(allocationGroupMapper.generateLPRErrorResponse(eq(violations), eq(AllocationGroupConstants.AG_CREATE)))
+                .thenReturn(errorResponse);
+
+        // Act & Assert
+        UnauthorizedException exception = assertThrows(UnauthorizedException.class, () -> {
+            createAllocationGroupDomainService.addAllocationGroup(allocationGroupReqBody, requestHeaders);
+        });
+
+        assertEquals(CreateAllocationGroupDomainService.CREATE_ALLOCATION_GROUP_PERMISSION_FAILURE, exception.getMessage());
+        verify(rbacService, times(1)).isAuthorised(anyString(), eq(AllocationGroupConstants.AG_CREATE));
+        verify(lprCommonUtils, times(1)).getSetforNullViolationofEventBody(anyString(), anyString());
+        verify(allocationGroupMapper, times(1)).generateLPRErrorResponse(eq(violations), eq(AllocationGroupConstants.AG_CREATE));
+    }
+
+    @Test
+    public void testAddAllocationGroup_Success() throws RbacValidationException, UnauthorizedException {
+        // Arrange
+        when(rbacService.isAuthorised(anyString(), eq(AllocationGroupConstants.AG_CREATE))).thenReturn(true);
+        when(allocationGroupMapper.mapRequestToEntity(eq(allocationGroupReqBody))).thenReturn(allocationGroupEntity);
+        when(allocationGroupRepository.save(eq(allocationGroupEntity))).thenReturn(allocationGroupEntity);
+        when(allocationGroupMapper.mapAllocationGroupV1ToAllocationGroup(eq(allocationGroupEntity))).thenReturn(allocationGroupResponse);
+        when(allocationGroupMapper.mapAllocationGroupChangeEvent(eq(allocationGroupResponse))).thenReturn(allocationGroupChangedEvent);
 
         // Act
-        Set<ConstraintViolation<Object>> violations = lprCommonUtils.getSetForNullViolationOfEventBody(expectedMessage, expectedPath);
+        AllocationGroupResponseV1 actualResponse = createAllocationGroupDomainService.addAllocationGroup(allocationGroupReqBody, requestHeaders);
 
         // Assert
-        assertNotNull(violations);
-        assertEquals(1, violations.size());
-        ConstraintViolation<Object> violation = violations.iterator().next();
-        assertEquals(expectedMessage, violation.getMessage());
-        assertEquals(expectedPath, violation.getPropertyPath().toString());
-    }
+        assertNotNull(actualResponse);
+        assertEquals(allocationGroupResponse, actualResponse);
 
-    @Test
-    void testBuildHeader() {
-        // Arrange
-        String eventName = "TestEvent";
-        CMDSHeaderContext mockContext = new CMDSHeaderContext();
-        mockContext.setCorrelationId("test-correlation-id");
-        mockContext.setTransactionId("test-transaction-id");
-        mockContext.setEventContext("test-context");
-        mockContext.setXaccessToken("test-token");
-        mockContext.setConnectionId("test-connection-id");
-        mockContext.setPartnerCode("test-partner");
-
-        // Use Mockito's MockedStatic for ThreadLocalHeaderContext
-        try (MockedStatic<ThreadLocalHeaderContext> mockedContext = mockStatic(ThreadLocalHeaderContext.class)) {
-            mockedContext.when(ThreadLocalHeaderContext::getContext).thenReturn(mockContext);
-
-            // Act
-            CMDSHeaderContext result = lprCommonUtils.buildHeader(eventName);
-
-            // Assert
-            assertNotNull(result);
-            assertEquals("test-correlation-id", result.getCorrelationId());
-            assertEquals("test-transaction-id", result.getTransactionId());
-            assertEquals("test-context", result.getEventContext());
-            assertEquals("test-token", result.getXaccessToken());
-            assertEquals("test-connection-id", result.getConnectionId());
-            assertEquals("test-partner", result.getPartnerCode());
-            assertEquals(eventName, result.getEventName());
-            assertNotNull(result.getEventDateTime()); // Ensure timestamp is generated
-        }
+        verify(rbacService, times(1)).isAuthorised(anyString(), eq(AllocationGroupConstants.AG_CREATE));
+        verify(allocationGroupMapper, times(1)).mapRequestToEntity(eq(allocationGroupReqBody));
+        verify(allocationGroupRepository, times(1)).save(eq(allocationGroupEntity));
+        verify(allocationGroupMapper, times(1)).mapAllocationGroupV1ToAllocationGroup(eq(allocationGroupEntity));
+        verify(allocationGroupMapper, times(1)).mapAllocationGroupChangeEvent(eq(allocationGroupResponse));
     }
 }
