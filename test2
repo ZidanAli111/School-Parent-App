@@ -1,0 +1,34 @@
+package com.ielts.cmds.lpr.infrastructure.exception;
+
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
+
+class UnauthorizedExceptionTest {
+
+    @Test
+    void testUnauthorizedException_WithMessageAndErrorResponse() {
+        // Arrange
+        CMDSLPRErrorResponse errorResponse = new CMDSLPRErrorResponse(); // Assuming this is a valid object
+        String expectedMessage = "Unauthorized access";
+
+        // Act
+        UnauthorizedException exception = new UnauthorizedException(errorResponse, expectedMessage);
+
+        // Assert
+        assertEquals(expectedMessage, exception.getMessage());
+        assertEquals(errorResponse, exception.getErrorResponse());
+    }
+
+    @Test
+    void testUnauthorizedException_WithOnlyErrorResponse() {
+        // Arrange
+        CMDSLPRErrorResponse errorResponse = new CMDSLPRErrorResponse();
+
+        // Act
+        UnauthorizedException exception = new UnauthorizedException(errorResponse, null);
+
+        // Assert
+        assertNull(exception.getMessage());
+        assertEquals(errorResponse, exception.getErrorResponse());
+    }
+}
