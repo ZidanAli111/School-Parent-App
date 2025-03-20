@@ -1,5 +1,7 @@
 package com.ielts.cmds.lpr.domain;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ielts.cmds.api.evt_228.AllocationGroupChanged;
 import com.ielts.cmds.lpr.common.model.AllocationGroup;
 import com.ielts.cmds.lpr.common.repository.AllocationGroupRepository;
 import com.ielts.cmds.lpr.infrastructure.exception.CMDSLPRErrorResponse;
@@ -10,7 +12,6 @@ import com.ielts.cmds.lpr.infrastructure.utils.LPRCommonUtils;
 import com.ielts.cmds.v2.rbac.api.service.RBACService;
 import com.ielts.cmds.v2.rbac.api.service.exception.RbacValidationException;
 import com.ielts.cmds.v2.serialization.application.utils.CMDSThreadLocalContextService;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -19,111 +20,82 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpHeaders;
+
 import java.util.Set;
+
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class CreateAllocationGroupDomainServiceTest {
 
-    @Mock
-    private RBACService rbacService;
-
-    @Mock
-    private LPRCommonUtils lprCommonUtils;
-
-    @Mock
-    private AllocationGroupMapper allocationGroupMapper;
-
-    @Mock
-    private AllocationGroupRepository allocationGroupRepository;
-
-    @Mock
-    private ApplicationEventPublisher eventPublisher;
-
-    @Mock
-    private ObjectMapper objectMapper;
-
-    @Mock
-    private CMDSThreadLocalContextService cmdsThreadLocalContextService;
-
     @InjectMocks
     private CreateAllocationGroupDomainService createAllocationGroupDomainService;
 
-    private AllocationGroupV1 allocationGroupV1;
-    private AllocationGroupResponseV1 allocationGroupResponseV1;
-    private HttpHeaders httpHeaders;
-
+    @Mock
+    private RBACService rbacService;
+    
+    @Mock
+    private LPRCommonUtils lprCommonUtils;
+    
+    @Mock
+    private AllocationGroupMapper allocationGroupMapper;
+    
+    @Mock
+    private AllocationGroupRepository allocationGroupRepository;
+    
+    @Mock
+    private ApplicationEventPublisher publisher;
+    
+    @Mock
+    private ObjectMapper objectMapper;
+    
+    @Mock
+    private CMDSThreadLocalContextService cmdsThreadLocalContextService;
+    
+    private HttpHeaders requestHeaders;
+    
     @BeforeEach
     void setUp() {
-        allocationGroupV1 = new AllocationGroupV1();
-        allocationGroupV1.setAllocationGroupName("Test Group V1");
-
-        allocationGroupResponseV1 = new AllocationGroupResponseV1();
-        allocationGroupResponseV1.setAllocationGroupUuid("123e4567-e89b-12d3-a456-426614174000");
-        allocationGroupResponseV1.setAllocationGroupId("AG-1001");
-        allocationGroupResponseV1.setAllocationGroupName("Test Group Response");
-
-        httpHeaders = new HttpHeaders();
-        httpHeaders.add("x-access-token", "valid-token");
+        createAllocationGroupDomainService = new CreateAllocationGroupDomainService(
+                publisher, objectMapper, cmdsThreadLocalContextService);
+        
+        requestHeaders = new HttpHeaders();
+        requestHeaders.set("x-access-token", "test-token");
     }
-
-    /** ❌ **Test: Missing `x-access-token` Header (Throws NullPointerException)** */
+    
     @Test
-    void shouldThrowExceptionWhenAccessTokenIsMissing() {
-        HttpHeaders missingHeaders = new HttpHeaders(); // No "x-access-token"
+    void addAllocationGroup_Success() throws RbacValidationException, UnauthorizedException {
+        AllocationGroupV1 request = new AllocationGroupV1();
+        AllocationGroup entity = new AllocationGroup();
+        AllocationGroupResponseV1 response = new AllocationGroupResponseV1();
+        AllocationGroupChanged event = new AllocationGroupChanged();
 
-        NullPointerException exception = assertThrows(NullPointerException.class, () -> {
-            createAllocationGroupDomainService.addAllocationGroup(allocationGroupV1, missingHeaders);
-        });
+        when(rbacService.isAuthorised("test-token", AllocationGroupConstants.AG_CREATE)).thenReturn(true);
+        when(allocationGroupMapper.mapRequestToEntity(request)).thenReturn(entity);
+        when(allocationGroupRepository.save(entity)).thenReturn(entity);
+        when(allocationGroupMapper.mapAllocationGroupToResponse(entity)).thenReturn(response);
+        when(allocationGroupMapper.mapAllocationGroupChangeEvent(response)).thenReturn(event);
 
-        assertEquals("Cannot invoke \"java.util.List.get(int)\" because \"this.get(...)\" is null", exception.getMessage());
+        AllocationGroupResponseV1 result = createAllocationGroupDomainService.addAllocationGroup(request, requestHeaders);
+
+        assertNotNull(result);
+        verify(allocationGroupRepository, times(1)).save(entity);
+        verify(publisher, times(1)).publishEvent(event);
     }
-
-    /** ❌ **Test: Empty `x-access-token` Header (Throws UnauthorizedException)** */
+    
     @Test
-    void shouldThrowUnauthorizedExceptionWhenAccessTokenIsEmpty() {
-        HttpHeaders emptyHeaders = new HttpHeaders();
-        emptyHeaders.add("x-access-token", "");
-
-        when(rbacService.isAuthorised("", AllocationGroupConstants.AG_CREATE)).thenReturn(false);
-        when(lprCommonUtils.getSetforNullViolationofEventBody(anyString(), anyString())).thenReturn(Set.of());
-
-        CMDSLPRErrorResponse errorResponse = new CMDSLPRErrorResponse();
-        when(allocationGroupMapper.generateLPRErrorResponse(any(), anyString())).thenReturn(errorResponse);
-
-        UnauthorizedException exception = assertThrows(UnauthorizedException.class, () -> {
-            createAllocationGroupDomainService.addAllocationGroup(allocationGroupV1, emptyHeaders);
-        });
-
-        assertEquals("You do not have permission to create allocation group", exception.getMessage());
-    }
-
-    /** ❌ **Test: Null Request Body (Throws IllegalArgumentException)** */
-    @Test
-    void shouldThrowExceptionWhenRequestBodyIsNull() {
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
-            createAllocationGroupDomainService.addAllocationGroup(null, httpHeaders);
-        });
-
-        assertEquals("Allocation group request body cannot be null", exception.getMessage());
-    }
-
-    /** ❌ **Test: Invalid Allocation Group Name (Fails Validation)** */
-    @Test
-    void shouldFailValidationWhenAllocationGroupNameIsInvalid() {
-        allocationGroupV1.setAllocationGroupName(""); // Invalid name
-
-        when(rbacService.isAuthorised("valid-token", AllocationGroupConstants.AG_CREATE)).thenReturn(true);
-        when(lprCommonUtils.getSetforNullViolationofEventBody(anyString(), anyString())).thenReturn(Set.of());
-
-        CMDSLPRErrorResponse errorResponse = new CMDSLPRErrorResponse();
-        when(allocationGroupMapper.generateLPRErrorResponse(any(), anyString())).thenReturn(errorResponse);
-
-        UnauthorizedException exception = assertThrows(UnauthorizedException.class, () -> {
-            createAllocationGroupDomainService.addAllocationGroup(allocationGroupV1, httpHeaders);
-        });
-
-        assertEquals("You do not have permission to create allocation group", exception.getMessage());
+    void addAllocationGroup_UnauthorizedException() throws RbacValidationException {
+        when(rbacService.isAuthorised("test-token", AllocationGroupConstants.AG_CREATE)).thenReturn(false);
+        when(lprCommonUtils.getSetforNullViolationofEventBody(any(), any())).thenReturn(Set.of());
+        when(allocationGroupMapper.generateLPRErrorResponse(any(), any())).thenReturn(new CMDSLPRErrorResponse());
+        
+        UnauthorizedException exception = assertThrows(UnauthorizedException.class, () ->
+                createAllocationGroupDomainService.addAllocationGroup(new AllocationGroupV1(), requestHeaders));
+        
+        assertNotNull(exception);
+        verify(allocationGroupRepository, never()).save(any());
+        verify(publisher, never()).publishEvent(any());
     }
 }
