@@ -1,34 +1,74 @@
-package com.ielts.cmds.lpr.infrastructure.exception;
+package com.ielts.cmds.lpr.infrastructure.utils;
 
+import com.ielts.cmds.v2.infrastructure.event.context.CMDSHeaderContext;
+import com.ielts.cmds.v2.infrastructure.event.context.ThreadLocalHeaderContext;
+import jakarta.validation.ConstraintViolation;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
+
+import java.time.LocalDateTime;
+import java.util.Set;
+
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
-class UnauthorizedExceptionTest {
+class LPRCommonUtilsTest {
 
-    @Test
-    void testUnauthorizedException_WithMessageAndErrorResponse() {
-        // Arrange
-        CMDSLPRErrorResponse errorResponse = new CMDSLPRErrorResponse(); // Assuming this is a valid object
-        String expectedMessage = "Unauthorized access";
+    private LPRCommonUtils lprCommonUtils;
 
-        // Act
-        UnauthorizedException exception = new UnauthorizedException(errorResponse, expectedMessage);
-
-        // Assert
-        assertEquals(expectedMessage, exception.getMessage());
-        assertEquals(errorResponse, exception.getErrorResponse());
+    @BeforeEach
+    void setUp() {
+        lprCommonUtils = new LPRCommonUtils();
     }
 
     @Test
-    void testUnauthorizedException_WithOnlyErrorResponse() {
+    void testGetSetForNullViolationOfEventBody() {
         // Arrange
-        CMDSLPRErrorResponse errorResponse = new CMDSLPRErrorResponse();
+        String expectedMessage = "Test message";
+        String expectedPath = "testField";
 
         // Act
-        UnauthorizedException exception = new UnauthorizedException(errorResponse, null);
+        Set<ConstraintViolation<Object>> violations = lprCommonUtils.getSetForNullViolationOfEventBody(expectedMessage, expectedPath);
 
         // Assert
-        assertNull(exception.getMessage());
-        assertEquals(errorResponse, exception.getErrorResponse());
+        assertNotNull(violations);
+        assertEquals(1, violations.size());
+        ConstraintViolation<Object> violation = violations.iterator().next();
+        assertEquals(expectedMessage, violation.getMessage());
+        assertEquals(expectedPath, violation.getPropertyPath().toString());
+    }
+
+    @Test
+    void testBuildHeader() {
+        // Arrange
+        String eventName = "TestEvent";
+        CMDSHeaderContext mockContext = new CMDSHeaderContext();
+        mockContext.setCorrelationId("test-correlation-id");
+        mockContext.setTransactionId("test-transaction-id");
+        mockContext.setEventContext("test-context");
+        mockContext.setXaccessToken("test-token");
+        mockContext.setConnectionId("test-connection-id");
+        mockContext.setPartnerCode("test-partner");
+
+        // Use Mockito's MockedStatic for ThreadLocalHeaderContext
+        try (MockedStatic<ThreadLocalHeaderContext> mockedContext = mockStatic(ThreadLocalHeaderContext.class)) {
+            mockedContext.when(ThreadLocalHeaderContext::getContext).thenReturn(mockContext);
+
+            // Act
+            CMDSHeaderContext result = lprCommonUtils.buildHeader(eventName);
+
+            // Assert
+            assertNotNull(result);
+            assertEquals("test-correlation-id", result.getCorrelationId());
+            assertEquals("test-transaction-id", result.getTransactionId());
+            assertEquals("test-context", result.getEventContext());
+            assertEquals("test-token", result.getXaccessToken());
+            assertEquals("test-connection-id", result.getConnectionId());
+            assertEquals("test-partner", result.getPartnerCode());
+            assertEquals(eventName, result.getEventName());
+            assertNotNull(result.getEventDateTime()); // Ensure timestamp is generated
+        }
     }
 }
