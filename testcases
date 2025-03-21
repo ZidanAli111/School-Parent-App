@@ -1,36 +1,68 @@
-@Test
-public void testGenerateLPRErrorResponse() {
-    // Arrange
-    // Create mock ConstraintViolation objects
-    ConstraintViolation<Object> violation1 = mock(ConstraintViolation.class);
-    ConstraintViolation<Object> violation2 = mock(ConstraintViolation.class);
+import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+import org.slf4j.Logger;
 
-    // Define violation messages
-    when(violation1.getMessage()).thenReturn("Field A is invalid");
-    when(violation2.getMessage()).thenReturn("Field B must not be null");
+import java.util.HashSet;
+import java.util.Set;
+import javax.validation.ConstraintViolation;
 
-    // Create a Set of violations (non-empty)
-    Set<ConstraintViolation<Object>> violations = new HashSet<>();
-    violations.add(violation1);
-    violations.add(violation2);
+import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.*;
 
-    // Mock LPR Error Response
-    CMDSLPRErrorResponse errorResponse = new CMDSLPRErrorResponse();
-    when(lprErrorResolver.populateErrorResponse(eq(violations), eq("permission"))).thenReturn(errorResponse);
+public class AllocationGroupMapperTest {
 
-    // Enable logging verification (only if needed)
-    Logger mockLogger = mock(Logger.class);
-    ReflectionTestUtils.setField(allocationGroupMapper, "log", mockLogger);  // Inject mock logger
+    @Mock
+    private LprErrorResolver lprErrorResolver;
 
-    // Act
-    CMDSLPRErrorResponse response = allocationGroupMapper.generateLPRErrorResponse(violations, "permission");
+    @Mock
+    private Logger mockLogger; // Mock the Logger
 
-    // Assert
-    assertNotNull(response);
-    assertEquals(errorResponse, response);
-    verify(lprErrorResolver, times(1)).populateErrorResponse(eq(violations), eq("permission"));
+    @InjectMocks
+    private AllocationGroupMapper allocationGroupMapper; // Inject mocks into the class
 
-    // Verify log messages (if logger is injected)
-    verify(mockLogger, times(1)).debug(eq("Constraint violation message in generateLPRErrorResponse: {}"), eq("Field A is invalid"));
-    verify(mockLogger, times(1)).debug(eq("Constraint violation message in generateLPRErrorResponse: {}"), eq("Field B must not be null"));
+    @Captor
+    private ArgumentCaptor<String> logMessageCaptor; // Capture log messages
+
+    public AllocationGroupMapperTest() {
+        MockitoAnnotations.openMocks(this); // Initialize mocks
+    }
+
+    @Test
+    public void testGenerateLPRErrorResponse() {
+        // Arrange
+        ConstraintViolation<Object> violation1 = mock(ConstraintViolation.class);
+        ConstraintViolation<Object> violation2 = mock(ConstraintViolation.class);
+
+        when(violation1.getMessage()).thenReturn("Field A is invalid");
+        when(violation2.getMessage()).thenReturn("Field B must not be null");
+
+        Set<ConstraintViolation<Object>> violations = new HashSet<>();
+        violations.add(violation1);
+        violations.add(violation2);
+
+        CMDSLPRErrorResponse errorResponse = new CMDSLPRErrorResponse();
+        when(lprErrorResolver.populateErrorResponse(eq(violations), eq("permission"))).thenReturn(errorResponse);
+
+        // Inject the mock logger into the mapper (if it's a field inside AllocationGroupMapper)
+        ReflectionTestUtils.setField(allocationGroupMapper, "log", mockLogger);
+
+        // Act
+        CMDSLPRErrorResponse response = allocationGroupMapper.generateLPRErrorResponse(violations, "permission");
+
+        // Assert
+        assertNotNull(response);
+        assertEquals(errorResponse, response);
+        verify(lprErrorResolver, times(1)).populateErrorResponse(eq(violations), eq("permission"));
+
+        // Capture log messages
+        verify(mockLogger, atLeastOnce()).debug(logMessageCaptor.capture());
+
+        // Extract captured log messages
+        assertTrue(logMessageCaptor.getAllValues().contains("Constraint violation message in generateLPRErrorResponse: Field A is invalid"));
+        assertTrue(logMessageCaptor.getAllValues().contains("Constraint violation message in generateLPRErrorResponse: Field B must not be null"));
+    }
 }
