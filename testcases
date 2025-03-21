@@ -6,9 +6,9 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.slf4j.Logger;
 
+import javax.validation.ConstraintViolation;
 import java.util.HashSet;
 import java.util.Set;
-import javax.validation.ConstraintViolation;
 
 import static org.mockito.Mockito.*;
 import static org.junit.jupiter.api.Assertions.*;
@@ -19,13 +19,16 @@ public class AllocationGroupMapperTest {
     private LprErrorResolver lprErrorResolver;
 
     @Mock
-    private Logger mockLogger; // Mock the Logger
+    private Logger mockLogger; // Mock Logger
 
     @InjectMocks
-    private AllocationGroupMapper allocationGroupMapper; // Inject mocks into the class
+    private AllocationGroupMapper allocationGroupMapper;
 
     @Captor
-    private ArgumentCaptor<String> logMessageCaptor; // Capture log messages
+    private ArgumentCaptor<String> logMessageCaptor;
+
+    @Captor
+    private ArgumentCaptor<Object> logParamCaptor;
 
     public AllocationGroupMapperTest() {
         MockitoAnnotations.openMocks(this); // Initialize mocks
@@ -47,7 +50,7 @@ public class AllocationGroupMapperTest {
         CMDSLPRErrorResponse errorResponse = new CMDSLPRErrorResponse();
         when(lprErrorResolver.populateErrorResponse(eq(violations), eq("permission"))).thenReturn(errorResponse);
 
-        // Inject the mock logger into the mapper (if it's a field inside AllocationGroupMapper)
+        // Inject mockLogger into allocationGroupMapper (if it's a private field)
         ReflectionTestUtils.setField(allocationGroupMapper, "log", mockLogger);
 
         // Act
@@ -58,11 +61,12 @@ public class AllocationGroupMapperTest {
         assertEquals(errorResponse, response);
         verify(lprErrorResolver, times(1)).populateErrorResponse(eq(violations), eq("permission"));
 
-        // Capture log messages
-        verify(mockLogger, atLeastOnce()).debug(logMessageCaptor.capture());
+        // ✅ Capture log messages
+        verify(mockLogger, times(2)).debug(logMessageCaptor.capture(), logParamCaptor.capture());
 
-        // Extract captured log messages
-        assertTrue(logMessageCaptor.getAllValues().contains("Constraint violation message in generateLPRErrorResponse: Field A is invalid"));
-        assertTrue(logMessageCaptor.getAllValues().contains("Constraint violation message in generateLPRErrorResponse: Field B must not be null"));
+        // ✅ Verify captured logs
+        assertTrue(logMessageCaptor.getAllValues().contains("Constraint violation message in generateLPRErrorResponse: {}"));
+        assertTrue(logParamCaptor.getAllValues().contains("Field A is invalid"));
+        assertTrue(logParamCaptor.getAllValues().contains("Field B must not be null"));
     }
 }
