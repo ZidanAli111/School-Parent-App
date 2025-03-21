@@ -1,5 +1,6 @@
 @Test
-public void testGenerateLPRErrorResponse_WithConstraintViolations() {
+public void testGenerateLPRErrorResponse() {
+    // Arrange
     // Create mock ConstraintViolation objects
     ConstraintViolation<Object> violation1 = mock(ConstraintViolation.class);
     ConstraintViolation<Object> violation2 = mock(ConstraintViolation.class);
@@ -8,19 +9,28 @@ public void testGenerateLPRErrorResponse_WithConstraintViolations() {
     when(violation1.getMessage()).thenReturn("Field A is invalid");
     when(violation2.getMessage()).thenReturn("Field B must not be null");
 
-    // Create a Set of violations
+    // Create a Set of violations (non-empty)
     Set<ConstraintViolation<Object>> violations = new HashSet<>();
     violations.add(violation1);
     violations.add(violation2);
 
-    // Enable logging verification
+    // Mock LPR Error Response
+    CMDSLPRErrorResponse errorResponse = new CMDSLPRErrorResponse();
+    when(lprErrorResolver.populateErrorResponse(eq(violations), eq("permission"))).thenReturn(errorResponse);
+
+    // Enable logging verification (only if needed)
     Logger mockLogger = mock(Logger.class);
-    ReflectionTestUtils.setField(allocationGroupMapper, "log", mockLogger);  // Inject mocked logger if needed
+    ReflectionTestUtils.setField(allocationGroupMapper, "log", mockLogger);  // Inject mock logger
 
-    // Call method
-    allocationGroupMapper.generateLPRErrorResponse(violations);
+    // Act
+    CMDSLPRErrorResponse response = allocationGroupMapper.generateLPRErrorResponse(violations, "permission");
 
-    // Verify logs
+    // Assert
+    assertNotNull(response);
+    assertEquals(errorResponse, response);
+    verify(lprErrorResolver, times(1)).populateErrorResponse(eq(violations), eq("permission"));
+
+    // Verify log messages (if logger is injected)
     verify(mockLogger, times(1)).debug(eq("Constraint violation message in generateLPRErrorResponse: {}"), eq("Field A is invalid"));
     verify(mockLogger, times(1)).debug(eq("Constraint violation message in generateLPRErrorResponse: {}"), eq("Field B must not be null"));
 }
