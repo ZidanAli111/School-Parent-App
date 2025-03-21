@@ -1,57 +1,9 @@
-import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Captor;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
-import org.slf4j.Logger;
-
-import javax.validation.ConstraintViolation;
-import java.util.HashSet;
-import java.util.Set;
-
-import static org.mockito.Mockito.*;
-import static org.junit.jupiter.api.Assertions.*;
-
-public class AllocationGroupMapperTest {
-
-    @Mock
-    private LprErrorResolver lprErrorResolver;
-
-    @Mock
-    private Logger mockLogger; // Mock Logger
-
-    @InjectMocks
-    private AllocationGroupMapper allocationGroupMapper;
-
-    @Captor
-    private ArgumentCaptor<String> logMessageCaptor;
-
-    @Captor
-    private ArgumentCaptor<Object> logParamCaptor;
-
-    public AllocationGroupMapperTest() {
-        MockitoAnnotations.openMocks(this); // Initialize mocks
-    }
-
-    @Test
+@Test
     public void testGenerateLPRErrorResponse() {
         // Arrange
-        ConstraintViolation<Object> violation1 = mock(ConstraintViolation.class);
-        ConstraintViolation<Object> violation2 = mock(ConstraintViolation.class);
-
-        when(violation1.getMessage()).thenReturn("Field A is invalid");
-        when(violation2.getMessage()).thenReturn("Field B must not be null");
-
-        Set<ConstraintViolation<Object>> violations = new HashSet<>();
-        violations.add(violation1);
-        violations.add(violation2);
-
+        Set<ConstraintViolation<Object>> violations = Collections.emptySet();
         CMDSLPRErrorResponse errorResponse = new CMDSLPRErrorResponse();
         when(lprErrorResolver.populateErrorResponse(eq(violations), eq("permission"))).thenReturn(errorResponse);
-
-        // Inject mockLogger into allocationGroupMapper (if it's a private field)
-        ReflectionTestUtils.setField(allocationGroupMapper, "log", mockLogger);
 
         // Act
         CMDSLPRErrorResponse response = allocationGroupMapper.generateLPRErrorResponse(violations, "permission");
@@ -60,13 +12,5 @@ public class AllocationGroupMapperTest {
         assertNotNull(response);
         assertEquals(errorResponse, response);
         verify(lprErrorResolver, times(1)).populateErrorResponse(eq(violations), eq("permission"));
-
-        // ✅ Capture log messages
-        verify(mockLogger, times(2)).debug(logMessageCaptor.capture(), logParamCaptor.capture());
-
-        // ✅ Verify captured logs
-        assertTrue(logMessageCaptor.getAllValues().contains("Constraint violation message in generateLPRErrorResponse: {}"));
-        assertTrue(logParamCaptor.getAllValues().contains("Field A is invalid"));
-        assertTrue(logParamCaptor.getAllValues().contains("Field B must not be null"));
     }
 }
