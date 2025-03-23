@@ -1,28 +1,68 @@
-{"@timestamp":"2025-03-24T00:21:06.407+05:30","@version":"1","message":"Inside create allocation group controller","logger_name":"com.ielts.cmds.lpr.controller.AllocationGroupController","thread_name":"main","level":"INFO","level_value":20000}
+{"@timestamp":"2025-03-24T01:01:28.652+05:30","@version":"1","message":"Inside create allocation group controller","logger_name":"com.ielts.cmds.lpr.controller.AllocationGroupController","thread_name":"main","level":"INFO","level_value":20000}
 
-{"@timestamp":"2025-03-24T00:21:06.547+05:30","@version":"1","message":"Inside create allocation group controller","logger_name":"com.ielts.cmds.lpr.controller.AllocationGroupController","thread_name":"main","level":"INFO","level_value":20000}
+{"@timestamp":"2025-03-24T01:01:28.779+05:30","@version":"1","message":"Inside create allocation group controller","logger_name":"com.ielts.cmds.lpr.controller.AllocationGroupController","thread_name":"main","level":"INFO","level_value":20000}
  
-org.opentest4j.AssertionFailedError: 
+ 
+Argument(s) are different! Wanted:
 
-Expected :6aff79b5-a555-4def-969d-83e2184d96ff
+loggerUtil.initializeMDCContext(
+<any string>,
 
-Actual   :a9d2cdcb-6e64-412f-a1c0-cb030afd6a2b
+    "Allocation Group Unit",
+
+    "907b5f35-812d-439c-a996-cfebac32febc"
+
+);
+
+-> at com.ielts.cmds.v2.common.logger.util.CMDSLoggerUtils.initializeMDCContext(CMDSLoggerUtils.java:23)
+
+Actual invocations have different arguments at position [2]:
+
+loggerUtil.initializeMDCContext(
+
+    "f1b06a73-846a-411b-95af-ab3235884fc9",
+
+    "Allocation Group Unit",
+
+    "e7921d8a-356d-4ae2-b68c-68876578dc20"
+
+);
+
+-> at com.ielts.cmds.lpr.controller.AllocationGroupController.createAllocationGroup(AllocationGroupController.java:47)
+ 
+Comparison Failure: 
 <Click to see difference>
  
+Argument(s) are different! Wanted:
+
+loggerUtil.initializeMDCContext(
+<any string>,
+
+    "Allocation Group Unit",
+
+    "907b5f35-812d-439c-a996-cfebac32febc"
+
+);
+
+-> at com.ielts.cmds.v2.common.logger.util.CMDSLoggerUtils.initializeMDCContext(CMDSLoggerUtils.java:23)
+
+Actual invocations have different arguments at position [2]:
+
+loggerUtil.initializeMDCContext(
+
+    "f1b06a73-846a-411b-95af-ab3235884fc9",
+
+    "Allocation Group Unit",
+
+    "e7921d8a-356d-4ae2-b68c-68876578dc20"
+
+);
+
+-> at com.ielts.cmds.lpr.controller.AllocationGroupController.createAllocationGroup(AllocationGroupController.java:47)
  
-	at org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+	at com.ielts.cmds.v2.common.logger.util.CMDSLoggerUtils.initializeMDCContext(CMDSLoggerUtils.java:23)
 
-	at org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
-
-	at org.junit.jupiter.api.AssertEquals.failNotEqual(AssertEquals.java:197)
-
-	at org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:182)
-
-	at org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:177)
-
-	at org.junit.jupiter.api.Assertions.assertEquals(Assertions.java:1145)
-
-	at com.ielts.cmds.lpr.controller.AllocationGroupControllerTest.testCreateAllocationGroup_Success(AllocationGroupControllerTest.java:101)
+	at com.ielts.cmds.lpr.controller.AllocationGroupControllerTest.testCreateAllocationGroup_Success(AllocationGroupControllerTest.java:99)
 
 	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
 
