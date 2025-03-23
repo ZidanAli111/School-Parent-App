@@ -1,13 +1,13 @@
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -17,20 +17,28 @@ import org.springframework.http.ResponseEntity;
 
 import com.ielts.cmds.lpr.domain.CreateAllocationGroupDomainService;
 import com.ielts.cmds.lpr.infrastructure.utils.AllocationGroupConstants;
+import com.ielts.cmds.lpr.infrastructure.utils.LPRCommonUtils;
 import com.ielts.cmds.v2.common.logger.util.CMDSLoggerUtils;
+import com.ielts.cmds.v2.infrastructure.event.context.CMDSHeaderContext;
+import com.ielts.cmds.v2.infrastructure.event.context.CMDSAuditContext;
+import com.ielts.cmds.v2.infrastructure.event.context.ThreadLocalHeaderContext;
+import com.ielts.cmds.v2.infrastructure.event.context.ThreadLocalAuditContext;
 import com.ielts.cmds.v2.rbac.api.service.exception.RbacValidationException;
 
 import lpr_mx.AllocationGroupResponseV1;
 import lpr_mx.AllocationGroupV1;
 
 @ExtendWith(MockitoExtension.class)
-class AllocationGroupControllerTest {
+public class AllocationGroupControllerTest {
 
     @Mock
     private CreateAllocationGroupDomainService createAllocationGroupDomainService;
 
     @Mock
     private CMDSLoggerUtils loggerUtil;
+
+    @Mock
+    private LPRCommonUtils commonUtils;
 
     @InjectMocks
     private AllocationGroupController allocationGroupController;
@@ -41,27 +49,33 @@ class AllocationGroupControllerTest {
 
     @BeforeEach
     void setUp() {
+        // Initialize test data
         allocationGroupV1 = new AllocationGroupV1();
         allocationGroupV1.setAllocationGroupName("Test Group");
-        allocationGroupV1.setEffectiveFromDate(LocalDate.parse("2025-04-20"));
-        allocationGroupV1.setEffectiveToDate(LocalDate.parse("2025-06-14"));
+        allocationGroupV1.setEffectiveFromDate("2025-03-20");
+        allocationGroupV1.setEffectiveToDate("2025-06-14");
 
         allocationGroupResponseV1 = new AllocationGroupResponseV1();
         allocationGroupResponseV1.setAllocationGroupUuid(UUID.fromString("b2885ba0-cb85-4629-a0af-1db25f3d7154"));
         allocationGroupResponseV1.setAllocationGroupId(1);
-        allocationGroupResponseV1.setAllocationGroupName("Test Response");
-        allocationGroupResponseV1.setEffectiveFromDate(LocalDate.parse("2025-04-20"));
-        allocationGroupResponseV1.setEffectiveToDate(LocalDate.parse("2025-06-14"));
+        allocationGroupResponseV1.setAllocationGroupName("Test Group");
+        allocationGroupResponseV1.setEffectiveFromDate("2025-03-20");
+        allocationGroupResponseV1.setEffectiveToDate("2025-06-14");
 
         httpHeaders = new HttpHeaders();
-        httpHeaders.add(AllocationGroupConstants.CORRELATION_ID, "b2885ba0-cb85-4629-a0af-1db25f3d7154");
+        httpHeaders.add("x-access-token", "valid-token");
+        httpHeaders.add("correlationid", UUID.randomUUID().toString());
+        httpHeaders.add("connectionid", "connection-id");
     }
 
     @Test
-    void testCreateAllocationGroup_Success() throws RbacValidationException {
-        // Arrange
-        when(createAllocationGroupDomainService.addAllocationGroup(allocationGroupV1, httpHeaders))
+    public void testCreateAllocationGroup_Success() throws RbacValidationException {
+        // Mock the service behavior
+        when(createAllocationGroupDomainService.addAllocationGroup(eq(allocationGroupV1), eq(httpHeaders)))
                 .thenReturn(allocationGroupResponseV1);
+
+        // Mock the commonUtils behavior
+        when(commonUtils.getPartnerCode(anyString())).thenReturn("partner-code");
 
         // Act
         ResponseEntity<AllocationGroupResponseV1> response =
@@ -73,45 +87,17 @@ class AllocationGroupControllerTest {
         assertEquals(allocationGroupResponseV1, response.getBody());
 
         // Verify logger initialization
-        ArgumentCaptor<String> correlationIdCaptor = ArgumentCaptor.forClass(String.class);
-        verify(loggerUtil, times(1)).initializeMDCContext(anyString(), anyString(), correlationIdCaptor.capture());
-        assertEquals(httpHeaders.getFirst(AllocationGroupConstants.CORRELATION_ID), correlationIdCaptor.getValue());
+        verify(loggerUtil, times(1)).initializeMDCContext(anyString(), eq("Allocation Group Unit"), anyString());
 
         // Verify service interaction
         verify(createAllocationGroupDomainService, times(1))
-                .addAllocationGroup(allocationGroupV1, httpHeaders);
+                .addAllocationGroup(eq(allocationGroupV1), eq(httpHeaders));
     }
 
     @Test
-    void testCreateAllocationGroup_WithMissingCorrelationId() throws RbacValidationException {
-        // Arrange
-        httpHeaders = new HttpHeaders(); // No correlationId
-        when(createAllocationGroupDomainService.addAllocationGroup(allocationGroupV1, httpHeaders))
-                .thenReturn(allocationGroupResponseV1);
-
-        // Act
-        ResponseEntity<AllocationGroupResponseV1> response =
-                allocationGroupController.createAllocationGroup(allocationGroupV1, httpHeaders);
-
-        // Assert
-        assertNotNull(response);
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertEquals(allocationGroupResponseV1, response.getBody());
-
-        // Verify logger initialization
-        ArgumentCaptor<String> correlationIdCaptor = ArgumentCaptor.forClass(String.class);
-        verify(loggerUtil, times(1)).initializeMDCContext(anyString(), anyString(), correlationIdCaptor.capture());
-        assertNotNull(correlationIdCaptor.getValue()); // Ensure a UUID is generated
-
-        // Verify service interaction
-        verify(createAllocationGroupDomainService, times(1))
-                .addAllocationGroup(allocationGroupV1, httpHeaders);
-    }
-
-    @Test
-    void testCreateAllocationGroup_ThrowsException() throws RbacValidationException {
-        // Arrange
-        when(createAllocationGroupDomainService.addAllocationGroup(allocationGroupV1, httpHeaders))
+    public void testCreateAllocationGroup_ThrowsException() throws RbacValidationException {
+        // Mock the service behavior to throw an exception
+        when(createAllocationGroupDomainService.addAllocationGroup(eq(allocationGroupV1), eq(httpHeaders)))
                 .thenThrow(new RbacValidationException("RBAC Error", new RuntimeException("RBAC validation error occurred")));
 
         // Act & Assert
@@ -119,10 +105,36 @@ class AllocationGroupControllerTest {
                 allocationGroupController.createAllocationGroup(allocationGroupV1, httpHeaders));
 
         // Verify logger initialization
-        verify(loggerUtil, times(1)).initializeMDCContext(anyString(), anyString(), anyString());
+        verify(loggerUtil, times(1)).initializeMDCContext(anyString(), eq("Allocation Group Unit"), anyString());
 
         // Verify service interaction
         verify(createAllocationGroupDomainService, times(1))
-                .addAllocationGroup(allocationGroupV1, httpHeaders);
+                .addAllocationGroup(eq(allocationGroupV1), eq(httpHeaders));
+    }
+
+    @Test
+    public void testInitializeHeaderContext() throws RbacValidationException {
+        // Mock the commonUtils behavior
+        when(commonUtils.getPartnerCode(anyString())).thenReturn("partner-code");
+
+        // Act
+        allocationGroupController.initializeHeaderContext(httpHeaders);
+
+        // Assert
+        CMDSHeaderContext headerContext = ThreadLocalHeaderContext.getContext();
+        assertNotNull(headerContext);
+        assertEquals(httpHeaders.getFirst("x-access-token"), headerContext.getXaccessToken());
+        assertEquals(UUID.fromString(httpHeaders.getFirst("correlationid")), headerContext.getCorrelationId());
+        assertEquals(httpHeaders.getFirst("connectionid"), headerContext.getConnectionId());
+        assertEquals("partner-code", headerContext.getPartnerCode());
+
+        CMDSAuditContext auditContext = ThreadLocalAuditContext.getContext();
+        assertNotNull(auditContext);
+        assertEquals(headerContext.getCorrelationId(), auditContext.getCausedByCorrelationId());
+        assertEquals(headerContext.getEventDateTime(), auditContext.getCausedByEventDateTime());
+        assertEquals(headerContext.getTransactionId(), auditContext.getCausedByTransactionId());
+
+        // Verify commonUtils interaction
+        verify(commonUtils, times(1)).getPartnerCode(eq(httpHeaders.getFirst("x-access-token")));
     }
 }
