@@ -1,1 +1,176 @@
-..
+package com.ielts.cmds.lpr.controller;
+ 
+import com.ielts.cmds.lpr.domain.CreateAllocationGroupDomainService;
+
+import com.ielts.cmds.lpr.infrastructure.utils.AllocationGroupConstants;
+
+import com.ielts.cmds.v2.common.logger.util.CMDSLoggerUtils;
+
+import com.ielts.cmds.v2.rbac.api.service.exception.RbacValidationException;
+
+import lpr_mx.AllocationGroupResponseV1;
+
+import lpr_mx.AllocationGroupV1;
+
+import org.junit.jupiter.api.BeforeEach;
+
+import org.junit.jupiter.api.Test;
+
+import org.junit.jupiter.api.extension.ExtendWith;
+
+import org.mockito.InjectMocks;
+
+import org.mockito.Mock;
+
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import org.springframework.http.HttpHeaders;
+
+import org.springframework.http.HttpStatus;
+
+import org.springframework.http.ResponseEntity;
+ 
+import java.time.LocalDate;
+
+import java.util.UUID;
+ 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
+import static org.mockito.Mockito.anyString;
+
+import static org.mockito.Mockito.times;
+
+import static org.mockito.Mockito.verify;
+
+import static org.mockito.Mockito.when;
+ 
+@ExtendWith(MockitoExtension.class)
+
+class AllocationGroupControllerTest {
+ 
+    @Mock
+
+    private CreateAllocationGroupDomainService createAllocationGroupDomainService;
+ 
+    @Mock
+
+    private CMDSLoggerUtils loggerUtil;
+ 
+    @InjectMocks
+
+    private AllocationGroupController allocationGroupController;
+ 
+    private AllocationGroupV1 allocationGroupV1;
+
+    private AllocationGroupResponseV1 allocationGroupResponseV1;
+
+    private HttpHeaders httpHeaders;
+ 
+    @BeforeEach
+
+    void setUp() {
+
+        allocationGroupV1 = new AllocationGroupV1();
+
+        allocationGroupV1.setAllocationGroupName("Test Group");
+
+        allocationGroupV1.setEffectiveFromDate(LocalDate.parse("2025-04-20"));
+
+        allocationGroupV1.setEffectiveToDate(LocalDate.parse("2025-06-14"));
+ 
+        allocationGroupResponseV1 = new AllocationGroupResponseV1();
+
+        allocationGroupResponseV1.setAllocationGroupUuid(UUID.fromString("b2885ba0-cb85-4629-a0af-1db25f3d7154"));
+
+        allocationGroupResponseV1.setAllocationGroupId(1);
+
+        allocationGroupResponseV1.setAllocationGroupName("Test Response");
+
+        allocationGroupResponseV1.setEffectiveFromDate(LocalDate.parse("2025-04-20"));
+
+        allocationGroupResponseV1.setEffectiveToDate(LocalDate.parse("2025-06-14"));
+ 
+        httpHeaders = new HttpHeaders();
+
+        httpHeaders.add(AllocationGroupConstants.CORRELATION_ID, "b2885ba0-cb85-4629-a0af-1db25f3d7154");
+
+    }
+ 
+    @Test
+
+    void testCreateAllocationGroup_Success() throws RbacValidationException {
+ 
+        when(createAllocationGroupDomainService.addAllocationGroup(allocationGroupV1, httpHeaders))
+
+                .thenReturn(allocationGroupResponseV1);
+ 
+        ResponseEntity<AllocationGroupResponseV1> response =
+
+                allocationGroupController.createAllocationGroup(allocationGroupV1, httpHeaders);
+ 
+        assertNotNull(response);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+
+        assertEquals(allocationGroupResponseV1, response.getBody());
+ 
+        verify(loggerUtil, times(1)).initializeMDCContext(anyString(), anyString(), anyString());
+
+        verify(createAllocationGroupDomainService, times(1))
+
+                .addAllocationGroup(allocationGroupV1, httpHeaders);
+
+    }
+ 
+    @Test
+
+    void testCreateAllocationGroup_WithMissingCorrelationId() throws RbacValidationException {
+
+        httpHeaders = new HttpHeaders();
+
+        when(createAllocationGroupDomainService.addAllocationGroup(allocationGroupV1, httpHeaders))
+
+                .thenReturn(allocationGroupResponseV1);
+ 
+        ResponseEntity<AllocationGroupResponseV1> response =
+
+                allocationGroupController.createAllocationGroup(allocationGroupV1, httpHeaders);
+ 
+        assertNotNull(response);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+
+        assertEquals(allocationGroupResponseV1, response.getBody());
+ 
+        verify(loggerUtil, times(1)).initializeMDCContext(anyString(), anyString(), anyString());
+
+        verify(createAllocationGroupDomainService, times(1))
+
+                .addAllocationGroup(allocationGroupV1, httpHeaders);
+
+    }
+ 
+    @Test
+
+    void testCreateAllocationGroup_ThrowsException() throws RbacValidationException {
+
+        when(createAllocationGroupDomainService.addAllocationGroup(allocationGroupV1, httpHeaders))
+
+                .thenThrow(new RbacValidationException("RBAC Error", new RuntimeException("RBAC validation error occur")));
+ 
+        assertThrows(RbacValidationException.class, () -> allocationGroupController.createAllocationGroup(allocationGroupV1, httpHeaders));
+ 
+        verify(loggerUtil, times(1)).initializeMDCContext(anyString(), anyString(), anyString());
+
+        verify(createAllocationGroupDomainService, times(1))
+
+                .addAllocationGroup(allocationGroupV1, httpHeaders);
+ 
+    }
+
+}
+ 
