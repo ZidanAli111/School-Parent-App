@@ -1,150 +1,47 @@
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+WARNING: A Java agent has been loaded dynamically (C:\Users\ALIZID\.m2\repository\net\bytebuddy\byte-buddy-agent\1.14.19\byte-buddy-agent-1.14.19.jar)
 
-import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.UUID;
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
 
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
 
-import com.ielts.cmds.lpr.domain.CreateAllocationGroupDomainService;
-import com.ielts.cmds.lpr.infrastructure.utils.AllocationGroupConstants;
-import com.ielts.cmds.lpr.infrastructure.utils.LPRCommonUtils;
-import com.ielts.cmds.v2.common.logger.util.CMDSLoggerUtils;
-import com.ielts.cmds.v2.infrastructure.event.context.CMDSHeaderContext;
-import com.ielts.cmds.v2.infrastructure.event.context.CMDSAuditContext;
-import com.ielts.cmds.v2.infrastructure.event.context.ThreadLocalAuditContext;
-import com.ielts.cmds.v2.infrastructure.event.context.ThreadLocalHeaderContext;
-import com.ielts.cmds.v2.rbac.api.service.exception.RbacValidationException;
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
 
-import lpr_mx.AllocationGroupResponseV1;
-import lpr_mx.AllocationGroupV1;
+OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+ 
+org.opentest4j.AssertionFailedError: Unexpected exception type thrown, 
 
-@ExtendWith(MockitoExtension.class)
-public class AllocationGroupControllerTest {
+Expected :class com.ielts.cmds.v2.rbac.api.service.exception.RbacValidationException
 
-    @Mock
-    private CreateAllocationGroupDomainService createAllocationGroupDomainService;
+Actual   :class java.lang.NullPointerException
+<Click to see difference>
+ 
+ 
+	at org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
 
-    @Mock
-    private CMDSLoggerUtils loggerUtil;
+	at org.junit.jupiter.api.AssertThrows.assertThrows(AssertThrows.java:67)
 
-    @Mock
-    private LPRCommonUtils commonUtils;
+	at org.junit.jupiter.api.AssertThrows.assertThrows(AssertThrows.java:35)
 
-    @InjectMocks
-    private AllocationGroupController allocationGroupController;
+	at org.junit.jupiter.api.Assertions.assertThrows(Assertions.java:3115)
 
-    private AllocationGroupV1 allocationGroupV1;
-    private AllocationGroupResponseV1 allocationGroupResponseV1;
-    private HttpHeaders httpHeaders;
+	at com.ielts.cmds.lpr.controller.AllocationGroupControllerTest.testCreateAllocationGroup_ThrowsException(AllocationGroupControllerTest.java:129)
 
-    @BeforeEach
-    void setUp() {
-        // Initialize test data
-        allocationGroupV1 = new AllocationGroupV1();
-        allocationGroupV1.setAllocationGroupName("Test Group");
-        allocationGroupV1.setEffectiveFromDate("2025-03-20");
-        allocationGroupV1.setEffectiveToDate("2025-06-14");
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
 
-        allocationGroupResponseV1 = new AllocationGroupResponseV1();
-        allocationGroupResponseV1.setAllocationGroupUuid(UUID.fromString("b2885ba0-cb85-4629-a0af-1db25f3d7154"));
-        allocationGroupResponseV1.setAllocationGroupId(1);
-        allocationGroupResponseV1.setAllocationGroupName("Test Group");
-        allocationGroupResponseV1.setEffectiveFromDate("2025-03-20");
-        allocationGroupResponseV1.setEffectiveToDate("2025-06-14");
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
 
-        httpHeaders = new HttpHeaders();
-        httpHeaders.add("x-access-token", "valid-token");
-        httpHeaders.add("correlationid", UUID.randomUUID().toString());
-        httpHeaders.add("connectionid", "connection-id");
-    }
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
 
-    @Test
-    public void testCreateAllocationGroup_Success() throws RbacValidationException {
-        // Mock the service behavior
-        when(createAllocationGroupDomainService.addAllocationGroup(eq(allocationGroupV1), eq(httpHeaders)))
-                .thenReturn(allocationGroupResponseV1);
+Caused by: java.lang.NullPointerException: Cannot invoke "com.ielts.cmds.lpr.infrastructure.utils.LPRCommonUtils.getPartnerCode(String)" because "this.commonUtils" is null
 
-        // Mock the commonUtils behavior
-        when(commonUtils.getPartnerCode(eq("valid-token"))).thenReturn("partner-code");
+	at com.ielts.cmds.lpr.controller.AllocationGroupController.initializeHeaderContext(AllocationGroupController.java:62)
 
-        // Act
-        ResponseEntity<AllocationGroupResponseV1> response =
-                allocationGroupController.createAllocationGroup(allocationGroupV1, httpHeaders);
+	at com.ielts.cmds.lpr.controller.AllocationGroupController.createAllocationGroup(AllocationGroupController.java:52)
 
-        // Assert
-        assertNotNull(response);
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertEquals(allocationGroupResponseV1, response.getBody());
+	at com.ielts.cmds.lpr.controller.AllocationGroupControllerTest.lambda$testCreateAllocationGroup_ThrowsException$0(AllocationGroupControllerTest.java:130)
 
-        // Verify logger initialization
-        ArgumentCaptor<String> correlationIdCaptor = ArgumentCaptor.forClass(String.class);
-        verify(loggerUtil, times(1)).initializeMDCContext(anyString(), eq("Allocation Group Unit"), correlationIdCaptor.capture());
-        assertEquals(httpHeaders.getFirst("correlationid"), correlationIdCaptor.getValue());
+	at org.junit.jupiter.api.AssertThrows.assertThrows(AssertThrows.java:53)
 
-        // Verify service interaction
-        verify(createAllocationGroupDomainService, times(1))
-                .addAllocationGroup(allocationGroupV1, httpHeaders);
-
-        // Verify header context initialization
-        CMDSHeaderContext headerContext = ThreadLocalHeaderContext.getContext();
-        assertNotNull(headerContext);
-        assertEquals(UUID.fromString(httpHeaders.getFirst("correlationid")), headerContext.getCorrelationId());
-        assertEquals("valid-token", headerContext.getXaccessToken());
-        assertEquals("connection-id", headerContext.getConnectionId());
-        assertEquals("partner-code", headerContext.getPartnerCode());
-
-        // Verify audit context initialization
-        CMDSAuditContext auditContext = ThreadLocalAuditContext.getContext();
-        assertNotNull(auditContext);
-        assertEquals(headerContext.getCorrelationId(), auditContext.getCausedByCorrelationId());
-        assertEquals(headerContext.getEventDateTime(), auditContext.getCausedByEventDateTime());
-        assertEquals(headerContext.getTransactionId(), auditContext.getCausedByTransactionId());
-    }
-
-    @Test
-    public void testCreateAllocationGroup_ThrowsException() throws RbacValidationException {
-        // Mock the service behavior to throw an exception
-        when(createAllocationGroupDomainService.addAllocationGroup(eq(allocationGroupV1), eq(httpHeaders)))
-                .thenThrow(new RbacValidationException("RBAC Error", new RuntimeException("RBAC validation error occurred")));
-
-        // Mock the commonUtils behavior
-        when(commonUtils.getPartnerCode(eq("valid-token"))).thenReturn("partner-code");
-
-        // Act & Assert
-        assertThrows(RbacValidationException.class, () ->
-                allocationGroupController.createAllocationGroup(allocationGroupV1, httpHeaders));
-
-        // Verify logger initialization
-        verify(loggerUtil, times(1)).initializeMDCContext(anyString(), eq("Allocation Group Unit"), anyString());
-
-        // Verify service interaction
-        verify(createAllocationGroupDomainService, times(1))
-                .addAllocationGroup(allocationGroupV1, httpHeaders);
-
-        // Verify header context initialization
-        CMDSHeaderContext headerContext = ThreadLocalHeaderContext.getContext();
-        assertNotNull(headerContext);
-        assertEquals(UUID.fromString(httpHeaders.getFirst("correlationid")), headerContext.getCorrelationId());
-        assertEquals("valid-token", headerContext.getXaccessToken());
-        assertEquals("connection-id", headerContext.getConnectionId());
-        assertEquals("partner-code", headerContext.getPartnerCode());
-
-        // Verify audit context initialization
-        CMDSAuditContext auditContext = ThreadLocalAuditContext.getContext();
-        assertNotNull(auditContext);
-        assertEquals(headerContext.getCorrelationId(), auditContext.getCausedByCorrelationId());
-        assertEquals(headerContext.getEventDateTime(), auditContext.getCausedByEventDateTime());
-        assertEquals(headerContext.getTransactionId(), auditContext.getCausedByTransactionId());
-    }
-}
+	... 6 more
+ 
+ 
