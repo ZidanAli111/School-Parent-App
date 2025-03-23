@@ -1,47 +1,88 @@
-WARNING: A Java agent has been loaded dynamically (C:\Users\ALIZID\.m2\repository\net\bytebuddy\byte-buddy-agent\1.14.19\byte-buddy-agent-1.14.19.jar)
+package com.ielts.cmds.lpr.controller;
 
-WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+import com.ielts.cmds.lpr.domain.CreateAllocationGroupDomainService;
+import com.ielts.cmds.lpr.infrastructure.utils.LPRCommonUtils;
+import com.ielts.cmds.v2.common.logger.util.CMDSLoggerUtils;
+import com.ielts.cmds.v2.rbac.api.service.exception.RbacValidationException;
+import lpr_mx.AllocationGroupResponseV1;
+import lpr_mx.AllocationGroupV1;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.Mockito;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 
-WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+import java.util.UUID;
 
-WARNING: Dynamic loading of agents will be disallowed by default in a future release
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
-OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
- 
-org.opentest4j.AssertionFailedError: Unexpected exception type thrown, 
+@ExtendWith(MockitoExtension.class)
+class AllocationGroupControllerTest {
 
-Expected :class com.ielts.cmds.v2.rbac.api.service.exception.RbacValidationException
+    @Mock
+    private CreateAllocationGroupDomainService createAllocationGroupDomainService;
 
-Actual   :class java.lang.NullPointerException
-<Click to see difference>
- 
- 
-	at org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+    @Mock
+    private CMDSLoggerUtils loggerUtil;
 
-	at org.junit.jupiter.api.AssertThrows.assertThrows(AssertThrows.java:67)
+    @Mock
+    private LPRCommonUtils commonUtils;
 
-	at org.junit.jupiter.api.AssertThrows.assertThrows(AssertThrows.java:35)
+    @InjectMocks
+    private AllocationGroupController allocationGroupController;
 
-	at org.junit.jupiter.api.Assertions.assertThrows(Assertions.java:3115)
+    private AllocationGroupV1 allocationGroup;
+    private HttpHeaders httpHeaders;
+    private AllocationGroupResponseV1 allocationGroupResponse;
 
-	at com.ielts.cmds.lpr.controller.AllocationGroupControllerTest.testCreateAllocationGroup_ThrowsException(AllocationGroupControllerTest.java:129)
+    @BeforeEach
+    void setUp() {
+        // Sample test data
+        allocationGroup = new AllocationGroupV1();
+        httpHeaders = new HttpHeaders();
+        httpHeaders.add("x-access-token", "test-access-token");
+        httpHeaders.add("correlationid", UUID.randomUUID().toString());
 
-	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+        allocationGroupResponse = new AllocationGroupResponseV1();
+    }
 
-	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+    @Test
+    void createAllocationGroup_ShouldReturnOkResponse() throws RbacValidationException {
+        // Mock behavior
+        when(createAllocationGroupDomainService.addAllocationGroup(any(), any())).thenReturn(allocationGroupResponse);
 
-	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+        // Call method
+        ResponseEntity<AllocationGroupResponseV1> response = allocationGroupController.createAllocationGroup(allocationGroup, httpHeaders);
 
-Caused by: java.lang.NullPointerException: Cannot invoke "com.ielts.cmds.lpr.infrastructure.utils.LPRCommonUtils.getPartnerCode(String)" because "this.commonUtils" is null
+        // Assertions
+        assertNotNull(response);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(allocationGroupResponse, response.getBody());
 
-	at com.ielts.cmds.lpr.controller.AllocationGroupController.initializeHeaderContext(AllocationGroupController.java:62)
+        // Verify that the service method was called
+        verify(createAllocationGroupDomainService, times(1)).addAllocationGroup(any(), any());
+    }
 
-	at com.ielts.cmds.lpr.controller.AllocationGroupController.createAllocationGroup(AllocationGroupController.java:52)
+    @Test
+    void createAllocationGroup_ShouldThrowException_WhenValidationFails() throws RbacValidationException {
+        // Mock behavior to throw an exception
+        when(createAllocationGroupDomainService.addAllocationGroup(any(), any()))
+                .thenThrow(new RbacValidationException("Validation Error"));
 
-	at com.ielts.cmds.lpr.controller.AllocationGroupControllerTest.lambda$testCreateAllocationGroup_ThrowsException$0(AllocationGroupControllerTest.java:130)
+        // Assertion for exception
+        RbacValidationException thrown = assertThrows(RbacValidationException.class, () -> {
+            allocationGroupController.createAllocationGroup(allocationGroup, httpHeaders);
+        });
 
-	at org.junit.jupiter.api.AssertThrows.assertThrows(AssertThrows.java:53)
+        assertEquals("Validation Error", thrown.getMessage());
 
-	... 6 more
- 
- 
+        // Verify that the service method was called
+        verify(createAllocationGroupDomainService, times(1)).addAllocationGroup(any(), any());
+    }
+}
