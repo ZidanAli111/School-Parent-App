@@ -1,17 +1,33 @@
+{"@timestamp":"2025-03-24T00:21:06.407+05:30","@version":"1","message":"Inside create allocation group controller","logger_name":"com.ielts.cmds.lpr.controller.AllocationGroupController","thread_name":"main","level":"INFO","level_value":20000}
 
-
-java.lang.NullPointerException: Cannot invoke "com.ielts.cmds.lpr.infrastructure.utils.LPRCommonUtils.getPartnerCode(String)" because "this.commonUtils" is null
+{"@timestamp":"2025-03-24T00:21:06.547+05:30","@version":"1","message":"Inside create allocation group controller","logger_name":"com.ielts.cmds.lpr.controller.AllocationGroupController","thread_name":"main","level":"INFO","level_value":20000}
  
-	at com.ielts.cmds.lpr.controller.AllocationGroupController.initializeHeaderContext(AllocationGroupController.java:62)
+org.opentest4j.AssertionFailedError: 
 
-	at com.ielts.cmds.lpr.controller.AllocationGroupController.createAllocationGroup(AllocationGroupController.java:52)
+Expected :6aff79b5-a555-4def-969d-83e2184d96ff
 
-	at com.ielts.cmds.lpr.controller.AllocationGroupControllerTest.testCreateAllocationGroup_Success(AllocationGroupControllerTest.java:92)
+Actual   :a9d2cdcb-6e64-412f-a1c0-cb030afd6a2b
+<Click to see difference>
+ 
+ 
+	at org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+
+	at org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+
+	at org.junit.jupiter.api.AssertEquals.failNotEqual(AssertEquals.java:197)
+
+	at org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:182)
+
+	at org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:177)
+
+	at org.junit.jupiter.api.Assertions.assertEquals(Assertions.java:1145)
+
+	at com.ielts.cmds.lpr.controller.AllocationGroupControllerTest.testCreateAllocationGroup_Success(AllocationGroupControllerTest.java:101)
 
 	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
 
 	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
 
 	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
- 
+
  
