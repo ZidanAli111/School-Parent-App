@@ -1,56 +1,79 @@
-package com.ielts.cmds.lpr.infrastructure.exception;
+package com.ielts.cmds.lpr.infrastructure.utils;
 
-import com.ielts.cmds.v2.infrastructure.event.BaseEventErrors;
+import com.ielts.cmds.v2.infrastructure.event.context.CMDSHeaderContext;
+import com.ielts.cmds.v2.infrastructure.event.context.ThreadLocalHeaderContext;
+import com.ielts.cmds.v2.rbac.api.service.RBACService;
 import com.ielts.cmds.v2.rbac.api.service.exception.RbacValidationException;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.mockito.InjectMocks;
-import org.mockito.MockitoAnnotations;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import com.ielts.cmds.v2.rbac.api.service.model.CmdsAuthentication;
+import com.ielts.cmds.v2.rbac.api.service.model.UserDetails;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Path;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.hibernate.validator.internal.engine.ConstraintViolationImpl;
+import org.hibernate.validator.internal.engine.path.PathImpl;
+import org.springframework.stereotype.Component;
 
-import java.util.Collections;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+@Slf4j
+@Component
+@RequiredArgsConstructor
+public class LPRCommonUtils {
 
-class ExceptionControllerTest {
+    private final RBACService rbacService;
 
-    @InjectMocks
-    private ExceptionController exceptionController;
+    public Set<ConstraintViolation<Object>> getSetForNullViolationOfEventBody(
+            final String interpolatedMessage, final String pathProperty) {
 
-    @BeforeEach
-    void setUp() {
-        MockitoAnnotations.openMocks(this);
+        Set<ConstraintViolation<Object>> violationSet = new HashSet<>();
+        Path path = PathImpl.createPathFromString(pathProperty);
+        final Map<String, Object> messageParameters = new HashMap<>();
+        final Map<String, Object> expressionVariables = new HashMap<>();
+        ConstraintViolation<Object> constraintViolationImpl =
+                ConstraintViolationImpl.forBeanValidation(
+                        null,
+                        messageParameters,
+                        expressionVariables,
+                        interpolatedMessage,
+                        null,
+                        null,
+                        null,
+                        null,
+                        path,
+                        null,
+                        null);
+
+        violationSet.add(constraintViolationImpl);
+        return violationSet;
     }
 
-    @Test
-    void testHandleRbacValidationException() {
-        // Arrange
-        RbacValidationException ex = new RbacValidationException("RBAC Validation Error");
 
-        // Act
-        ResponseEntity<BaseEventErrors> response = exceptionController.handleRbacValidationException(ex);
 
-        // Assert
-        assertNotNull(response);
-        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
-        assertNotNull(response.getBody());
+    public CMDSHeaderContext buildHeader(String eventName) {
+        CMDSHeaderContext cmdsHeaderContext = new CMDSHeaderContext();
+        cmdsHeaderContext.setCorrelationId(ThreadLocalHeaderContext.getContext().getCorrelationId());
+        cmdsHeaderContext.setEventDateTime(LocalDateTime.now(ZoneOffset.UTC));
+        cmdsHeaderContext.setTransactionId(ThreadLocalHeaderContext.getContext().getTransactionId());
+        cmdsHeaderContext.setEventContext(ThreadLocalHeaderContext.getContext().getEventContext());
+        cmdsHeaderContext.setEventName(eventName);
+        cmdsHeaderContext.setPartnerCode(ThreadLocalHeaderContext.getContext().getPartnerCode());
+        ThreadLocalHeaderContext.setContext(cmdsHeaderContext);
+
+        return cmdsHeaderContext;
     }
 
-    @Test
-    void testHandleUnauthorizedException() {
-        // Arrange
-        UnauthorizedException ex = new UnauthorizedException(new ErrorResponse(Collections.singletonList("Unauthorized Error")));
-
-        // Act
-        ResponseEntity<BaseEventErrors> response = exceptionController.handleUnauthorizedException(ex);
-
-        // Assert
-        assertNotNull(response);
-        assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
-        assertNotNull(response.getBody());
-        assertEquals(1, response.getBody().getErrorList().size());
-        assertEquals("Unauthorized Error", response.getBody().getErrorList().get(0));
+    public String getPartnerCode(final String xAccessToken) throws RbacValidationException {
+        CmdsAuthentication decodeAccessToken = rbacService.getCmdsAuthentication(xAccessToken);
+        UserDetails userDetails = decodeAccessToken.getUserDetails();
+        return userDetails.getPartnerCode();
     }
+
+
+
 }
