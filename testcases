@@ -1,123 +1,137 @@
 package com.ielts.cmds.lpr.infrastructure.utils;
- 
+
 import com.ielts.cmds.v2.infrastructure.event.context.CMDSHeaderContext;
-
 import com.ielts.cmds.v2.infrastructure.event.context.ThreadLocalHeaderContext;
-
 import com.ielts.cmds.v2.rbac.api.service.RBACService;
-
+import com.ielts.cmds.v2.rbac.api.service.exception.RbacValidationException;
+import com.ielts.cmds.v2.rbac.api.service.model.CmdsAuthentication;
+import com.ielts.cmds.v2.rbac.api.service.model.UserDetails;
 import jakarta.validation.ConstraintViolation;
-
 import org.junit.jupiter.api.Test;
-
 import org.junit.jupiter.api.extension.ExtendWith;
-
 import org.mockito.InjectMocks;
-
 import org.mockito.Mock;
-
 import org.mockito.MockedStatic;
-
 import org.mockito.junit.jupiter.MockitoExtension;
- 
+
 import java.util.HashMap;
-
 import java.util.Map;
-
 import java.util.Set;
-
 import java.util.UUID;
- 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
-import static org.mockito.Mockito.mockStatic;
- 
 @ExtendWith(MockitoExtension.class)
-
 class LPRCommonUtilsTest {
- 
-    @InjectMocks  private LPRCommonUtils lprCommonUtils;
- 
-    @Mock private RBACService rbacService;
- 
- 
-    @Test
 
+    @InjectMocks
+    private LPRCommonUtils lprCommonUtils;
+
+    @Mock
+    private RBACService rbacService;
+
+    @Test
     void testGetSetForNullViolationOfEventBody() {
-
         String expectedMessage = "Test message";
-
         String expectedPath = "testField";
-
         Set<ConstraintViolation<Object>> violations = lprCommonUtils.getSetForNullViolationOfEventBody(expectedMessage, expectedPath);
- 
+
         assertNotNull(violations);
-
         assertEquals(1, violations.size());
-
         ConstraintViolation<Object> violation = violations.iterator().next();
-
         assertEquals(expectedMessage, violation.getMessage());
-
         assertEquals(expectedPath, violation.getPropertyPath().toString());
-
     }
- 
+
     @Test
-
     void testBuildHeader() {
- 
         String eventName = "TestEvent";
-
-        Map<String, String> eventContextValue = new HashMap<String, String>();
-
+        Map<String, String> eventContextValue = new HashMap<>();
         eventContextValue.put("key_1", "test-context1");
-
         eventContextValue.put("key_2", "test-context2");
- 
+
         CMDSHeaderContext mockContext = new CMDSHeaderContext();
-
         mockContext.setCorrelationId(UUID.fromString("fbcb51b7-d88e-470e-b879-2eb3ecc43276"));
-
         mockContext.setTransactionId(UUID.fromString("184f4c69-cbf1-4eab-b8e5-768c30bb9c02"));
-
         mockContext.setEventContext(eventContextValue);
-
         mockContext.setXaccessToken("test-token");
-
         mockContext.setConnectionId("test-connection-id");
-
         mockContext.setPartnerCode("test-partner");
- 
-        try (MockedStatic<ThreadLocalHeaderContext> mockedContext = mockStatic(ThreadLocalHeaderContext.class)) {
 
+        try (MockedStatic<ThreadLocalHeaderContext> mockedContext = mockStatic(ThreadLocalHeaderContext.class)) {
             mockedContext.when(ThreadLocalHeaderContext::getContext).thenReturn(mockContext);
 
             CMDSHeaderContext result = lprCommonUtils.buildHeader(eventName);
- 
+
             assertNotNull(result);
-
             assertEquals(UUID.fromString("fbcb51b7-d88e-470e-b879-2eb3ecc43276"), result.getCorrelationId());
-
             assertEquals(UUID.fromString("184f4c69-cbf1-4eab-b8e5-768c30bb9c02"), result.getTransactionId());
-
             assertEquals("test-partner", result.getPartnerCode());
-
             assertEquals(eventName, result.getEventName());
-
             assertNotNull(result.getEventDateTime());
- 
+
             assertNotNull(result.getEventContext());
-
             assertEquals("test-context1", result.getEventContext().get("key_1"));
-
             assertEquals("test-context2", result.getEventContext().get("key_2"));
- 
         }
-
     }
 
+    @Test
+    void testGetPartnerCode() throws RbacValidationException {
+        String xAccessToken = "test-token";
+        CmdsAuthentication mockAuthentication = new CmdsAuthentication();
+        UserDetails mockUserDetails = new UserDetails();
+        mockUserDetails.setPartnerCode("test-partner");
+        mockAuthentication.setUserDetails(mockUserDetails);
+
+        when(rbacService.getCmdsAuthentication(xAccessToken)).thenReturn(mockAuthentication);
+
+        String partnerCode = lprCommonUtils.getPartnerCode(xAccessToken);
+
+        assertNotNull(partnerCode);
+        assertEquals("test-partner", partnerCode);
+        verify(rbacService, times(1)).getCmdsAuthentication(xAccessToken);
+    }
+
+    @Test
+    void testGetPartnerCode_ThrowsRbacValidationException() throws RbacValidationException {
+        String xAccessToken = "invalid-token";
+        when(rbacService.getCmdsAuthentication(xAccessToken)).thenThrow(new RbacValidationException("Invalid token"));
+
+        assertThrows(RbacValidationException.class, () -> lprCommonUtils.getPartnerCode(xAccessToken));
+        verify(rbacService, times(1)).getCmdsAuthentication(xAccessToken);
+    }
+
+    @Test
+    void testBuildHeader_WithNullContext() {
+        String eventName = "TestEvent";
+
+        try (MockedStatic<ThreadLocalHeaderContext> mockedContext = mockStatic(ThreadLocalHeaderContext.class)) {
+            mockedContext.when(ThreadLocalHeaderContext::getContext).thenReturn(null);
+
+            CMDSHeaderContext result = lprCommonUtils.buildHeader(eventName);
+
+            assertNotNull(result);
+            assertEquals(eventName, result.getEventName());
+            assertNotNull(result.getEventDateTime());
+            assertNull(result.getCorrelationId());
+            assertNull(result.getTransactionId());
+            assertNull(result.getPartnerCode());
+        }
+    }
+
+    @Test
+    void testGetSetForNullViolationOfEventBody_NullInputs() {
+        String interpolatedMessage = null;
+        String pathProperty = null;
+
+        Set<ConstraintViolation<Object>> violations = lprCommonUtils.getSetForNullViolationOfEventBody(interpolatedMessage, pathProperty);
+
+        assertNotNull(violations);
+        assertEquals(1, violations.size());
+        ConstraintViolation<Object> violation = violations.iterator().next();
+        assertNull(violation.getMessage());
+        assertNull(violation.getPropertyPath().toString());
+    }
 }
- 
