@@ -1,1 +1,56 @@
-..
+package com.ielts.cmds.lpr.infrastructure.exception;
+
+import com.ielts.cmds.v2.infrastructure.event.BaseEventErrors;
+import com.ielts.cmds.v2.rbac.api.service.exception.RbacValidationException;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.InjectMocks;
+import org.mockito.MockitoAnnotations;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+
+import java.util.Collections;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+
+class ExceptionControllerTest {
+
+    @InjectMocks
+    private ExceptionController exceptionController;
+
+    @BeforeEach
+    void setUp() {
+        MockitoAnnotations.openMocks(this);
+    }
+
+    @Test
+    void testHandleRbacValidationException() {
+        // Arrange
+        RbacValidationException ex = new RbacValidationException("RBAC Validation Error");
+
+        // Act
+        ResponseEntity<BaseEventErrors> response = exceptionController.handleRbacValidationException(ex);
+
+        // Assert
+        assertNotNull(response);
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+        assertNotNull(response.getBody());
+    }
+
+    @Test
+    void testHandleUnauthorizedException() {
+        // Arrange
+        UnauthorizedException ex = new UnauthorizedException(new ErrorResponse(Collections.singletonList("Unauthorized Error")));
+
+        // Act
+        ResponseEntity<BaseEventErrors> response = exceptionController.handleUnauthorizedException(ex);
+
+        // Assert
+        assertNotNull(response);
+        assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(1, response.getBody().getErrorList().size());
+        assertEquals("Unauthorized Error", response.getBody().getErrorList().get(0));
+    }
+}
