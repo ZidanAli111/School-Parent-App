@@ -1,1 +1,509 @@
-...
+package com.ielts.cmds.lpr.controller;
+ 
+import com.ielts.cmds.lpr.domain.CreateAllocationGroupDomainService;
+
+import com.ielts.cmds.lpr.infrastructure.utils.AllocationGroupConstants;
+
+import com.ielts.cmds.lpr.infrastructure.utils.LPRCommonUtils;
+
+import com.ielts.cmds.ms.lpr_mx.AllocationGroupResponseV1;
+
+import com.ielts.cmds.ms.lpr_mx.AllocationGroupV1;
+
+import com.ielts.cmds.v2.common.logger.util.CMDSLoggerUtils;
+
+import com.ielts.cmds.v2.infrastructure.event.context.CMDSAuditContext;
+
+import com.ielts.cmds.v2.infrastructure.event.context.CMDSHeaderContext;
+
+import com.ielts.cmds.v2.infrastructure.event.context.ThreadLocalAuditContext;
+
+import com.ielts.cmds.v2.infrastructure.event.context.ThreadLocalHeaderContext;
+
+import com.ielts.cmds.v2.rbac.api.service.exception.RbacValidationException;
+
+import lombok.RequiredArgsConstructor;
+
+import lombok.extern.slf4j.Slf4j;
+
+import org.springframework.http.HttpHeaders;
+
+import org.springframework.http.HttpStatus;
+
+import org.springframework.http.ResponseEntity;
+
+import org.springframework.web.bind.annotation.CrossOrigin;
+
+import org.springframework.web.bind.annotation.PostMapping;
+
+import org.springframework.web.bind.annotation.RequestBody;
+
+import org.springframework.web.bind.annotation.RequestHeader;
+
+import org.springframework.web.bind.annotation.RequestMapping;
+
+import org.springframework.web.bind.annotation.RestController;
+ 
+import java.time.LocalDateTime;
+
+import java.util.HashMap;
+
+import java.util.Objects;
+
+import java.util.UUID;
+ 
+import static com.ielts.cmds.lpr.infrastructure.utils.AllocationGroupConstants.X_ACCESS_TOKEN;
+ 
+@CrossOrigin(origins = "${ui.allowedOrigin}")
+
+@Slf4j
+
+@RestController
+
+@RequestMapping("/v1/allocationgroup")
+
+@RequiredArgsConstructor
+
+public class AllocationGroupController {
+ 
+    private final CreateAllocationGroupDomainService createAllocationGroupDomainService;
+
+    private final CMDSLoggerUtils loggerUtil;
+
+    private final LPRCommonUtils commonUtils;
+ 
+    @PostMapping(value = "/add")
+
+    ResponseEntity<AllocationGroupResponseV1> createAllocationGroup(
+
+            @RequestBody AllocationGroupV1 allocationGroup,
+
+            @RequestHeader HttpHeaders httpHeaders) throws RbacValidationException {
+ 
+        loggerUtil.initializeMDCContext(UUID.randomUUID().toString(), "Allocation Group Unit",
+
+                Objects.requireNonNull(httpHeaders.get(AllocationGroupConstants.CORRELATION_ID)).getFirst()
+
+        );
+
+        commonUtils.initializeHeaderContext(httpHeaders);
+
+        log.info("Inside create allocation group controller");
+
+        return ResponseEntity.status(HttpStatus.OK).body(createAllocationGroupDomainService.addAllocationGroup(allocationGroup, httpHeaders));
+
+    }
+ 
+ 
+}
+ 
+ 
+
+
+
+
+
+
+package com.ielts.cmds.lpr.infrastructure.utils;
+ 
+import com.ielts.cmds.v2.infrastructure.event.context.CMDSAuditContext;
+
+import com.ielts.cmds.v2.infrastructure.event.context.CMDSHeaderContext;
+
+import com.ielts.cmds.v2.infrastructure.event.context.ThreadLocalAuditContext;
+
+import com.ielts.cmds.v2.infrastructure.event.context.ThreadLocalHeaderContext;
+
+import com.ielts.cmds.v2.rbac.api.service.RBACService;
+
+import com.ielts.cmds.v2.rbac.api.service.exception.RbacValidationException;
+
+import com.ielts.cmds.v2.rbac.api.service.model.CmdsAuthentication;
+
+import com.ielts.cmds.v2.rbac.api.service.model.UserDetails;
+
+import jakarta.validation.ConstraintViolation;
+
+import jakarta.validation.Path;
+
+import lombok.RequiredArgsConstructor;
+
+import lombok.extern.slf4j.Slf4j;
+
+import org.hibernate.validator.internal.engine.ConstraintViolationImpl;
+
+import org.hibernate.validator.internal.engine.path.PathImpl;
+
+import org.springframework.http.HttpHeaders;
+
+import org.springframework.stereotype.Component;
+ 
+import java.time.LocalDateTime;
+
+import java.time.ZoneOffset;
+
+import java.util.HashMap;
+
+import java.util.HashSet;
+
+import java.util.Map;
+
+import java.util.Objects;
+
+import java.util.Set;
+
+import java.util.UUID;
+ 
+import static com.ielts.cmds.lpr.infrastructure.utils.AllocationGroupConstants.X_ACCESS_TOKEN;
+ 
+@Slf4j
+
+@Component
+
+@RequiredArgsConstructor
+
+public class LPRCommonUtils {
+ 
+    private final RBACService rbacService;
+ 
+ 
+    public Set<ConstraintViolation<Object>> getSetForNullViolationOfEventBody(
+
+            final String interpolatedMessage, final String pathProperty) {
+ 
+        Set<ConstraintViolation<Object>> violationSet = new HashSet<>();
+
+        Path path = PathImpl.createPathFromString(pathProperty);
+
+        final Map<String, Object> messageParameters = new HashMap<>();
+
+        final Map<String, Object> expressionVariables = new HashMap<>();
+
+        ConstraintViolation<Object> constraintViolationImpl =
+
+                ConstraintViolationImpl.forBeanValidation(
+
+                        null,
+
+                        messageParameters,
+
+                        expressionVariables,
+
+                        interpolatedMessage,
+
+                        null,
+
+                        null,
+
+                        null,
+
+                        null,
+
+                        path,
+
+                        null,
+
+                        null);
+ 
+        violationSet.add(constraintViolationImpl);
+
+        return violationSet;
+
+    }
+ 
+ 
+    public CMDSHeaderContext buildHeader(String eventName) {
+
+        CMDSHeaderContext cmdsHeaderContext = new CMDSHeaderContext();
+
+        cmdsHeaderContext.setCorrelationId(ThreadLocalHeaderContext.getContext().getCorrelationId());
+
+        cmdsHeaderContext.setEventDateTime(LocalDateTime.now(ZoneOffset.UTC));
+
+        cmdsHeaderContext.setTransactionId(ThreadLocalHeaderContext.getContext().getTransactionId());
+
+        cmdsHeaderContext.setEventContext(ThreadLocalHeaderContext.getContext().getEventContext());
+
+        cmdsHeaderContext.setEventName(eventName);
+
+        cmdsHeaderContext.setPartnerCode(ThreadLocalHeaderContext.getContext().getPartnerCode());
+
+        ThreadLocalHeaderContext.setContext(cmdsHeaderContext);
+ 
+        return cmdsHeaderContext;
+
+    }
+ 
+    public String getPartnerCode(final String xAccessToken) throws RbacValidationException {
+
+        CmdsAuthentication decodeAccessToken = rbacService.getCmdsAuthentication(xAccessToken);
+
+        UserDetails userDetails = decodeAccessToken.getUserDetails();
+
+        return userDetails.getPartnerCode();
+
+    }
+ 
+ 
+    public void initializeHeaderContext(HttpHeaders requestHeader) throws RbacValidationException {
+
+        String accessToken = Objects.requireNonNull(requestHeader.get(X_ACCESS_TOKEN)).getFirst();
+
+        String correlationId = Objects.requireNonNull(requestHeader.get(AllocationGroupConstants.CORRELATION_ID)).getFirst();
+
+        String partnerCode = getPartnerCode(accessToken);
+
+        CMDSHeaderContext cmdsHeaderContext = new CMDSHeaderContext();
+
+        cmdsHeaderContext.setCorrelationId(UUID.fromString(correlationId));
+
+        cmdsHeaderContext.setEventDateTime(LocalDateTime.now());
+
+        cmdsHeaderContext.setTransactionId(ThreadLocalHeaderContext.getContext().getTransactionId());
+
+        cmdsHeaderContext.setEventContext(new HashMap<>());
+
+        cmdsHeaderContext.setPartnerCode(partnerCode);
+
+        ThreadLocalHeaderContext.setContext(cmdsHeaderContext);
+ 
+        CMDSAuditContext cmdsAuditContext = new CMDSAuditContext();
+ 
+        cmdsAuditContext.setCausedByCorrelationId(ThreadLocalHeaderContext.getContext().getCorrelationId());
+
+        cmdsAuditContext.setCausedByEventDateTime(ThreadLocalHeaderContext.getContext().getEventDateTime());
+
+        cmdsAuditContext.setCausedByTransactionId(ThreadLocalHeaderContext.getContext().getTransactionId());
+
+        ThreadLocalAuditContext.setContext(cmdsAuditContext);
+
+    }
+ 
+}
+
+ 
+package com.ielts.cmds.lpr.controller;
+ 
+import com.ielts.cmds.lpr.domain.CreateAllocationGroupDomainService;
+
+import com.ielts.cmds.lpr.infrastructure.utils.AllocationGroupConstants;
+
+import com.ielts.cmds.lpr.infrastructure.utils.LPRCommonUtils;
+
+import com.ielts.cmds.ms.lpr_mx.AllocationGroupResponseV1;
+
+import com.ielts.cmds.ms.lpr_mx.AllocationGroupV1;
+
+import com.ielts.cmds.v2.common.logger.util.CMDSLoggerUtils;
+
+import com.ielts.cmds.v2.infrastructure.event.context.CMDSAuditContext;
+
+import com.ielts.cmds.v2.infrastructure.event.context.CMDSHeaderContext;
+
+import com.ielts.cmds.v2.infrastructure.event.context.ThreadLocalAuditContext;
+
+import com.ielts.cmds.v2.infrastructure.event.context.ThreadLocalHeaderContext;
+
+import com.ielts.cmds.v2.rbac.api.service.exception.RbacValidationException;
+
+import org.junit.jupiter.api.BeforeEach;
+
+import org.junit.jupiter.api.Test;
+
+import org.junit.jupiter.api.extension.ExtendWith;
+
+import org.mockito.InjectMocks;
+
+import org.mockito.Mock;
+
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import org.springframework.http.HttpHeaders;
+
+import org.springframework.http.HttpStatus;
+
+import org.springframework.http.ResponseEntity;
+ 
+import java.time.LocalDate;
+
+import java.util.UUID;
+ 
+import static com.ielts.cmds.lpr.infrastructure.utils.AllocationGroupConstants.X_ACCESS_TOKEN;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
+import static org.mockito.Mockito.anyString;
+
+import static org.mockito.Mockito.eq;
+
+import static org.mockito.Mockito.times;
+
+import static org.mockito.Mockito.verify;
+
+import static org.mockito.Mockito.when;
+ 
+@ExtendWith(MockitoExtension.class)
+
+class AllocationGroupControllerTest {
+ 
+    @Mock
+
+    private CreateAllocationGroupDomainService createAllocationGroupDomainService;
+ 
+    @Mock
+
+    private CMDSLoggerUtils loggerUtil;
+ 
+    @Mock
+
+    private LPRCommonUtils commonUtils;
+ 
+    @InjectMocks
+
+    private AllocationGroupController allocationGroupController;
+ 
+    private AllocationGroupV1 allocationGroupV1;
+ 
+    private AllocationGroupResponseV1 allocationGroupResponseV1;
+ 
+    private HttpHeaders httpHeaders;
+ 
+    @BeforeEach
+
+    void setUp() {
+ 
+        allocationGroupV1 = new AllocationGroupV1();
+
+        allocationGroupV1.setAllocationGroupName("Test Group");
+
+        allocationGroupV1.setEffectiveFromDate(LocalDate.parse("2025-03-20"));
+
+        allocationGroupV1.setEffectiveToDate(LocalDate.parse("2025-06-14"));
+ 
+        allocationGroupResponseV1 = new AllocationGroupResponseV1();
+ 
+        allocationGroupResponseV1.setAllocationGroupUuid(UUID.fromString("b2885ba0-cb85-4629-a0af-1db25f3d7154"));
+
+        allocationGroupResponseV1.setAllocationGroupId(1);
+
+        allocationGroupResponseV1.setAllocationGroupName("Test Group");
+
+        allocationGroupResponseV1.setEffectiveFromDate(LocalDate.parse("2025-03-20"));
+
+        allocationGroupResponseV1.setEffectiveToDate(LocalDate.parse("2025-06-14"));
+ 
+        httpHeaders = new HttpHeaders();
+
+        httpHeaders.add(X_ACCESS_TOKEN, "valid-token");
+
+        httpHeaders.add(AllocationGroupConstants.CORRELATION_ID, UUID.randomUUID().toString());
+ 
+    }
+ 
+    @Test
+
+    void testCreateAllocationGroup_Success() throws RbacValidationException {
+ 
+        when(createAllocationGroupDomainService.addAllocationGroup(allocationGroupV1, httpHeaders))
+
+                .thenReturn(allocationGroupResponseV1);
+
+        when(commonUtils.getPartnerCode("valid-token")).thenReturn("partner-code");
+ 
+        ResponseEntity<AllocationGroupResponseV1> response = allocationGroupController.createAllocationGroup(allocationGroupV1, httpHeaders);
+ 
+        assertNotNull(response);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+
+        assertEquals(allocationGroupResponseV1, response.getBody());
+
+        CMDSHeaderContext headerContext = ThreadLocalHeaderContext.getContext();
+ 
+        assertEquals(UUID.fromString(httpHeaders.getFirst(AllocationGroupConstants.CORRELATION_ID)), headerContext.getCorrelationId());
+ 
+        verify(createAllocationGroupDomainService, times(1)).addAllocationGroup(allocationGroupV1, httpHeaders);
+ 
+        assertNotNull(headerContext);
+
+        assertEquals(UUID.fromString(httpHeaders.getFirst(AllocationGroupConstants.CORRELATION_ID)), headerContext.getCorrelationId());
+ 
+        CMDSAuditContext auditContext = ThreadLocalAuditContext.getContext();
+ 
+        assertNotNull(auditContext);
+
+        assertEquals(headerContext.getCorrelationId(), auditContext.getCausedByCorrelationId());
+
+        assertEquals(headerContext.getEventDateTime(), auditContext.getCausedByEventDateTime());
+
+        assertEquals(headerContext.getTransactionId(), auditContext.getCausedByTransactionId());
+ 
+    }
+ 
+    @Test
+
+    void testCreateAllocationGroup_ThrowsException() throws RbacValidationException {
+ 
+        when(createAllocationGroupDomainService.addAllocationGroup(allocationGroupV1, httpHeaders))
+
+                .thenThrow(new RbacValidationException("RBAC Error", new RuntimeException("RBAC validation error occurred")));
+ 
+        assertThrows(RbacValidationException.class, () ->
+
+                allocationGroupController.createAllocationGroup(allocationGroupV1, httpHeaders));
+ 
+        verify(loggerUtil, times(1)).initializeMDCContext(anyString(), eq("Allocation Group Unit"), anyString());
+
+        verify(createAllocationGroupDomainService, times(1))
+
+                .addAllocationGroup(allocationGroupV1, httpHeaders);
+ 
+    }
+ 
+    @Test
+
+    void testInitializeHeaderContext() throws RbacValidationException {
+
+        HttpHeaders requestHeader = new HttpHeaders();
+ 
+        requestHeader.add(X_ACCESS_TOKEN, "valid-token");
+
+        requestHeader.add(AllocationGroupConstants.CORRELATION_ID, UUID.randomUUID().toString());
+ 
+        when(commonUtils.getPartnerCode("valid-token")).thenReturn("partner-code");
+
+        commonUtils.initializeHeaderContext(requestHeader);
+ 
+        CMDSHeaderContext headerContext = ThreadLocalHeaderContext.getContext();
+ 
+        assertNotNull(headerContext);
+ 
+        assertEquals(UUID.fromString(requestHeader.getFirst(AllocationGroupConstants.CORRELATION_ID)), headerContext.getCorrelationId());
+ 
+        assertNotNull(headerContext.getEventDateTime());
+
+        assertNotNull(headerContext.getTransactionId());
+
+        assertNotNull(headerContext.getEventContext());
+ 
+        CMDSAuditContext auditContext = ThreadLocalAuditContext.getContext();
+ 
+        assertNotNull(auditContext);
+
+        assertEquals(headerContext.getCorrelationId(), auditContext.getCausedByCorrelationId());
+
+        assertEquals(headerContext.getEventDateTime(), auditContext.getCausedByEventDateTime());
+
+        assertEquals(headerContext.getTransactionId(), auditContext.getCausedByTransactionId());
+ 
+        verify(commonUtils, times(1)).getPartnerCode("valid-token");
+ 
+    }
+ 
+}
+
+ 
