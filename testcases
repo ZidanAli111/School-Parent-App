@@ -1,1 +1,109 @@
-0
+package com.ielts.cmds.lpr.infrastructure.utils;
+
+import com.ielts.cmds.v2.infrastructure.event.context.CMDSHeaderContext;
+import com.ielts.cmds.v2.infrastructure.event.context.ThreadLocalHeaderContext;
+import com.ielts.cmds.v2.rbac.api.service.RBACService;
+import com.ielts.cmds.v2.rbac.api.service.exception.RbacValidationException;
+import com.ielts.cmds.v2.rbac.api.service.model.CmdsAuthentication;
+import com.ielts.cmds.v2.rbac.api.service.model.UserDetails;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Path;
+import org.hibernate.validator.internal.engine.path.PathImpl;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.util.Set;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
+class LPRCommonUtilsTest {
+
+    @Mock
+    private RBACService rbacService;
+
+    @InjectMocks
+    private LPRCommonUtils lprCommonUtils;
+
+    @BeforeEach
+    void setUp() {
+        MockitoAnnotations.openMocks(this);
+    }
+
+    @Test
+    void testGetSetForNullViolationOfEventBody() {
+        // Arrange
+        String interpolatedMessage = "Field cannot be null";
+        String pathProperty = "fieldName";
+
+        // Act
+        Set<ConstraintViolation<Object>> violations = lprCommonUtils.getSetForNullViolationOfEventBody(interpolatedMessage, pathProperty);
+
+        // Assert
+        assertNotNull(violations);
+        assertEquals(1, violations.size());
+        ConstraintViolation<Object> violation = violations.iterator().next();
+        assertEquals(interpolatedMessage, violation.getMessage());
+        assertEquals(pathProperty, ((PathImpl) violation.getPropertyPath()).toString());
+    }
+
+    @Test
+    void testBuildHeader() {
+        // Arrange
+        String eventName = "TestEvent";
+        CMDSHeaderContext mockContext = new CMDSHeaderContext();
+        mockContext.setCorrelationId("correlationId");
+        mockContext.setTransactionId("transactionId");
+        mockContext.setEventContext("eventContext");
+        mockContext.setPartnerCode("partnerCode");
+        ThreadLocalHeaderContext.setContext(mockContext);
+
+        // Act
+        CMDSHeaderContext headerContext = lprCommonUtils.buildHeader(eventName);
+
+        // Assert
+        assertNotNull(headerContext);
+        assertEquals("correlationId", headerContext.getCorrelationId());
+        assertEquals("transactionId", headerContext.getTransactionId());
+        assertEquals("eventContext", headerContext.getEventContext());
+        assertEquals("partnerCode", headerContext.getPartnerCode());
+        assertEquals(eventName, headerContext.getEventName());
+        assertNotNull(headerContext.getEventDateTime());
+    }
+
+    @Test
+    void testGetPartnerCode() throws RbacValidationException {
+        // Arrange
+        String xAccessToken = "testAccessToken";
+        CmdsAuthentication mockAuthentication = new CmdsAuthentication();
+        UserDetails mockUserDetails = new UserDetails();
+        mockUserDetails.setPartnerCode("testPartnerCode");
+        mockAuthentication.setUserDetails(mockUserDetails);
+
+        when(rbacService.getCmdsAuthentication(xAccessToken)).thenReturn(mockAuthentication);
+
+        // Act
+        String partnerCode = lprCommonUtils.getPartnerCode(xAccessToken);
+
+        // Assert
+        assertNotNull(partnerCode);
+        assertEquals("testPartnerCode", partnerCode);
+        verify(rbacService, times(1)).getCmdsAuthentication(xAccessToken);
+    }
+
+    @Test
+    void testGetPartnerCodeThrowsRbacValidationException() throws RbacValidationException {
+        // Arrange
+        String xAccessToken = "invalidAccessToken";
+        when(rbacService.getCmdsAuthentication(xAccessToken)).thenThrow(new RbacValidationException("Invalid token"));
+
+        // Act & Assert
+        assertThrows(RbacValidationException.class, () -> lprCommonUtils.getPartnerCode(xAccessToken));
+        verify(rbacService, times(1)).getCmdsAuthentication(xAccessToken);
+    }
+}
