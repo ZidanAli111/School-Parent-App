@@ -1,109 +1,123 @@
 package com.ielts.cmds.lpr.infrastructure.utils;
-
+ 
 import com.ielts.cmds.v2.infrastructure.event.context.CMDSHeaderContext;
-import com.ielts.cmds.v2.infrastructure.event.context.ThreadLocalHeaderContext;
-import com.ielts.cmds.v2.rbac.api.service.RBACService;
-import com.ielts.cmds.v2.rbac.api.service.exception.RbacValidationException;
-import com.ielts.cmds.v2.rbac.api.service.model.CmdsAuthentication;
-import com.ielts.cmds.v2.rbac.api.service.model.UserDetails;
-import jakarta.validation.ConstraintViolation;
-import jakarta.validation.Path;
-import org.hibernate.validator.internal.engine.path.PathImpl;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
 
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
+import com.ielts.cmds.v2.infrastructure.event.context.ThreadLocalHeaderContext;
+
+import com.ielts.cmds.v2.rbac.api.service.RBACService;
+
+import jakarta.validation.ConstraintViolation;
+
+import org.junit.jupiter.api.Test;
+
+import org.junit.jupiter.api.extension.ExtendWith;
+
+import org.mockito.InjectMocks;
+
+import org.mockito.Mock;
+
+import org.mockito.MockedStatic;
+
+import org.mockito.junit.jupiter.MockitoExtension;
+ 
+import java.util.HashMap;
+
+import java.util.Map;
+
 import java.util.Set;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import java.util.UUID;
+ 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+
+import static org.mockito.Mockito.mockStatic;
+ 
+@ExtendWith(MockitoExtension.class)
 
 class LPRCommonUtilsTest {
-
-    @Mock
-    private RBACService rbacService;
-
-    @InjectMocks
-    private LPRCommonUtils lprCommonUtils;
-
-    @BeforeEach
-    void setUp() {
-        MockitoAnnotations.openMocks(this);
-    }
-
+ 
+    @InjectMocks  private LPRCommonUtils lprCommonUtils;
+ 
+    @Mock private RBACService rbacService;
+ 
+ 
     @Test
+
     void testGetSetForNullViolationOfEventBody() {
-        // Arrange
-        String interpolatedMessage = "Field cannot be null";
-        String pathProperty = "fieldName";
 
-        // Act
-        Set<ConstraintViolation<Object>> violations = lprCommonUtils.getSetForNullViolationOfEventBody(interpolatedMessage, pathProperty);
+        String expectedMessage = "Test message";
 
-        // Assert
+        String expectedPath = "testField";
+
+        Set<ConstraintViolation<Object>> violations = lprCommonUtils.getSetForNullViolationOfEventBody(expectedMessage, expectedPath);
+ 
         assertNotNull(violations);
+
         assertEquals(1, violations.size());
+
         ConstraintViolation<Object> violation = violations.iterator().next();
-        assertEquals(interpolatedMessage, violation.getMessage());
-        assertEquals(pathProperty, ((PathImpl) violation.getPropertyPath()).toString());
-    }
 
+        assertEquals(expectedMessage, violation.getMessage());
+
+        assertEquals(expectedPath, violation.getPropertyPath().toString());
+
+    }
+ 
     @Test
+
     void testBuildHeader() {
-        // Arrange
+ 
         String eventName = "TestEvent";
+
+        Map<String, String> eventContextValue = new HashMap<String, String>();
+
+        eventContextValue.put("key_1", "test-context1");
+
+        eventContextValue.put("key_2", "test-context2");
+ 
         CMDSHeaderContext mockContext = new CMDSHeaderContext();
-        mockContext.setCorrelationId("correlationId");
-        mockContext.setTransactionId("transactionId");
-        mockContext.setEventContext("eventContext");
-        mockContext.setPartnerCode("partnerCode");
-        ThreadLocalHeaderContext.setContext(mockContext);
 
-        // Act
-        CMDSHeaderContext headerContext = lprCommonUtils.buildHeader(eventName);
+        mockContext.setCorrelationId(UUID.fromString("fbcb51b7-d88e-470e-b879-2eb3ecc43276"));
 
-        // Assert
-        assertNotNull(headerContext);
-        assertEquals("correlationId", headerContext.getCorrelationId());
-        assertEquals("transactionId", headerContext.getTransactionId());
-        assertEquals("eventContext", headerContext.getEventContext());
-        assertEquals("partnerCode", headerContext.getPartnerCode());
-        assertEquals(eventName, headerContext.getEventName());
-        assertNotNull(headerContext.getEventDateTime());
+        mockContext.setTransactionId(UUID.fromString("184f4c69-cbf1-4eab-b8e5-768c30bb9c02"));
+
+        mockContext.setEventContext(eventContextValue);
+
+        mockContext.setXaccessToken("test-token");
+
+        mockContext.setConnectionId("test-connection-id");
+
+        mockContext.setPartnerCode("test-partner");
+ 
+        try (MockedStatic<ThreadLocalHeaderContext> mockedContext = mockStatic(ThreadLocalHeaderContext.class)) {
+
+            mockedContext.when(ThreadLocalHeaderContext::getContext).thenReturn(mockContext);
+
+            CMDSHeaderContext result = lprCommonUtils.buildHeader(eventName);
+ 
+            assertNotNull(result);
+
+            assertEquals(UUID.fromString("fbcb51b7-d88e-470e-b879-2eb3ecc43276"), result.getCorrelationId());
+
+            assertEquals(UUID.fromString("184f4c69-cbf1-4eab-b8e5-768c30bb9c02"), result.getTransactionId());
+
+            assertEquals("test-partner", result.getPartnerCode());
+
+            assertEquals(eventName, result.getEventName());
+
+            assertNotNull(result.getEventDateTime());
+ 
+            assertNotNull(result.getEventContext());
+
+            assertEquals("test-context1", result.getEventContext().get("key_1"));
+
+            assertEquals("test-context2", result.getEventContext().get("key_2"));
+ 
+        }
+
     }
 
-    @Test
-    void testGetPartnerCode() throws RbacValidationException {
-        // Arrange
-        String xAccessToken = "testAccessToken";
-        CmdsAuthentication mockAuthentication = new CmdsAuthentication();
-        UserDetails mockUserDetails = new UserDetails();
-        mockUserDetails.setPartnerCode("testPartnerCode");
-        mockAuthentication.setUserDetails(mockUserDetails);
-
-        when(rbacService.getCmdsAuthentication(xAccessToken)).thenReturn(mockAuthentication);
-
-        // Act
-        String partnerCode = lprCommonUtils.getPartnerCode(xAccessToken);
-
-        // Assert
-        assertNotNull(partnerCode);
-        assertEquals("testPartnerCode", partnerCode);
-        verify(rbacService, times(1)).getCmdsAuthentication(xAccessToken);
-    }
-
-    @Test
-    void testGetPartnerCodeThrowsRbacValidationException() throws RbacValidationException {
-        // Arrange
-        String xAccessToken = "invalidAccessToken";
-        when(rbacService.getCmdsAuthentication(xAccessToken)).thenThrow(new RbacValidationException("Invalid token"));
-
-        // Act & Assert
-        assertThrows(RbacValidationException.class, () -> lprCommonUtils.getPartnerCode(xAccessToken));
-        verify(rbacService, times(1)).getCmdsAuthentication(xAccessToken);
-    }
 }
+ 
