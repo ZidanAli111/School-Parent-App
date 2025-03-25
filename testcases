@@ -1,222 +1,42 @@
-package com.ielts.cmds.lpr.infrastructure.utils;
- 
-import com.ielts.cmds.lpr.AllocationGroupSetup;
+package com.ielts.cmds.lpr.infrastructure.config;
 
-import com.ielts.cmds.v2.infrastructure.event.context.CMDSAuditContext;
+import org.springframework.context.annotation.Bean;
 
-import com.ielts.cmds.v2.infrastructure.event.context.CMDSHeaderContext;
+import org.springframework.context.annotation.Configuration;
 
-import com.ielts.cmds.v2.infrastructure.event.context.ThreadLocalAuditContext;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 
-import com.ielts.cmds.v2.infrastructure.event.context.ThreadLocalHeaderContext;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 
-import com.ielts.cmds.v2.rbac.api.service.RBACService;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 
-import com.ielts.cmds.v2.rbac.api.service.model.CmdsAuthentication;
+import org.springframework.security.web.SecurityFilterChain;
 
-import com.ielts.cmds.v2.rbac.api.service.model.UserDetails;
+@Configuration
 
-import jakarta.validation.ConstraintViolation;
+@EnableWebSecurity
 
-import lombok.SneakyThrows;
+public class SecurityConfig  {
 
-import org.junit.jupiter.api.BeforeEach;
+    @Bean
 
-import org.junit.jupiter.api.Test;
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 
-import org.junit.jupiter.api.extension.ExtendWith;
+        http
 
-import org.mockito.InjectMocks;
+                .authorizeHttpRequests(auth -> auth
 
-import org.mockito.Mock;
+                        .anyRequest().permitAll()
 
-import org.mockito.junit.jupiter.MockitoExtension;
+                )
 
-import org.springframework.http.HttpHeaders;
- 
-import java.time.LocalDateTime;
+                .csrf(AbstractHttpConfigurer::disable)
 
-import java.util.Set;
+                .cors(AbstractHttpConfigurer::disable);
 
-import java.util.UUID;
- 
-import static com.ielts.cmds.lpr.infrastructure.utils.AllocationGroupConstants.EVENT_DATE_TIME;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-
-import static org.junit.jupiter.api.Assertions.assertThrows;
-
-import static org.mockito.ArgumentMatchers.anyString;
-
-import static org.mockito.Mockito.when;
- 
-@ExtendWith(MockitoExtension.class)
-
-class LPRCommonUtilsTest {
- 
-    @InjectMocks
-
-    private LPRCommonUtils lprCommonUtils;
- 
-    @Mock
-
-    private RBACService rbacService;
- 
-    @Mock
-
-    private CmdsAuthentication cmdsAuthentication;
- 
-    @Mock
-
-    private UserDetails userDetails;
- 
- 
-    @BeforeEach
-
-    void setup() {
-
-        CMDSHeaderContext headerContext = AllocationGroupSetup.getCmdsHeaderContext();
-
-        ThreadLocalHeaderContext.setContext(headerContext);
- 
-        CMDSAuditContext auditContext = AllocationGroupSetup.getCmdsAuditContext();
-
-        ThreadLocalAuditContext.setContext(auditContext);
+        return http.build();
 
     }
- 
- 
-    @SneakyThrows
 
-    @Test
-
-    void testGetPartnerCode() {
-
-        String xAccessToken = "valid-token";
-
-        String expectedPartnerCode = "IDP";
- 
-        when(rbacService.getCmdsAuthentication(xAccessToken)).thenReturn(cmdsAuthentication);
-
-        when(cmdsAuthentication.getUserDetails()).thenReturn(userDetails);
-
-        when(userDetails.getPartnerCode()).thenReturn(expectedPartnerCode);
- 
-        String actualPartnerCode = lprCommonUtils.getPartnerCode(xAccessToken);
-
-        assertEquals(expectedPartnerCode, actualPartnerCode);
-
-    }
- 
-    @Test
-
-    void testGetSetForNullViolationOfEventBody() {
-
-        String expectedMessage = "Test message";
-
-        String expectedPath = "testField";
- 
-        Set<ConstraintViolation<Object>> violations =
-
-                lprCommonUtils.getSetForNullViolationOfEventBody(expectedMessage, expectedPath);
- 
-        assertNotNull(violations);
-
-        assertEquals(1, violations.size());
-
-        ConstraintViolation<Object> violation = violations.iterator().next();
-
-        assertEquals(expectedMessage, violation.getMessage());
-
-        assertEquals(expectedPath, violation.getPropertyPath().toString());
-
-    }
- 
-    @Test
-
-    void testBuildHeader() {
-
-        String eventName = "TestEvent";
-
-        CMDSHeaderContext result = lprCommonUtils.buildHeader(eventName);
- 
-        assertNotNull(result);
-
-        assertEquals(eventName, result.getEventName());
-
-        assertNotNull(result.getEventDateTime());
-
-        assertEquals("IDP", result.getPartnerCode()); // From setup
-
-    }
- 
-    @SneakyThrows
-
-    @Test
-
-    void initializeHeaderContext_ShouldSetBothContextsCorrectly() {
-
-        HttpHeaders headers = AllocationGroupSetup.setHttpHeaders();
-
-        UUID transactionId = UUID.randomUUID();
-
-        LocalDateTime eventDateTime = LocalDateTime.now();
-
-        headers.add(
-
-                EVENT_DATE_TIME, eventDateTime.toString());
- 
-        when(rbacService.getCmdsAuthentication(anyString())).thenReturn(cmdsAuthentication);
-
-        when(cmdsAuthentication.getUserDetails()).thenReturn(userDetails);
-
-        when(userDetails.getPartnerCode()).thenReturn("IDP");
- 
-        lprCommonUtils.initializeHeaderContext(headers, transactionId);
- 
-        CMDSHeaderContext headerContext = ThreadLocalHeaderContext.getContext();
-
-        assertNotNull(headerContext);
-
-        assertEquals(headers.getFirst(AllocationGroupConstants.CORRELATION_ID), headerContext.getCorrelationId().toString());
-
-        assertEquals(eventDateTime, headerContext.getEventDateTime());
-
-        assertEquals(transactionId, headerContext.getTransactionId());
-
-        assertEquals("IDP", headerContext.getPartnerCode());
-
-        assertNotNull(headerContext.getEventContext());
- 
- 
-        CMDSAuditContext auditContext = ThreadLocalAuditContext.getContext();
-
-        assertNotNull(auditContext);
-
-        assertEquals(headerContext.getCorrelationId(), auditContext.getCausedByCorrelationId());
-
-        assertEquals(headerContext.getEventDateTime(), auditContext.getCausedByEventDateTime());
-
-        assertEquals(headerContext.getTransactionId(), auditContext.getCausedByTransactionId());
-
-    }
- 
-    @Test
-
-    void initializeHeaderContext_ShouldThrowException_WhenMissingRequiredHeaders() {
-
-        HttpHeaders incompleteHeaders = new HttpHeaders();
-
-        UUID transactionId = UUID.randomUUID();
-
-        assertThrows(NullPointerException.class,
-
-                () -> lprCommonUtils.initializeHeaderContext(incompleteHeaders, transactionId));
-
-    }
- 
- 
 }
  
