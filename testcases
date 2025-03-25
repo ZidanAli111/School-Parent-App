@@ -1,1 +1,69 @@
-..
+package com.ielts.cmds.lpr.infrastructure.exception;
+ 
+ 
+import com.ielts.cmds.ms.lpr_mx.BaseEventErrorsErrorListInner;
+import com.ielts.cmds.v2.common.constants.CMDSConstants;
+import jakarta.validation.ConstraintViolation;
+import lombok.Getter;
+ 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+ 
+@Getter
+public class CMDSLPRErrorResolver<T> {
+ 
+    private Map<String, String> errorCodeMapper;
+ 
+    public CMDSLPRErrorResolver(Map<String, String> errorCodeMapper) {
+        this.errorCodeMapper = Collections.unmodifiableMap(errorCodeMapper);
+    }
+ 
+    public List<BaseEventErrorsErrorListInner> populatErrorResponse(
+            final Iterable<ConstraintViolation<T>> cmdsViolations, final String interfaceName) {
+        final List<BaseEventErrorsErrorListInner> errorDescList = new ArrayList<>();
+        cmdsViolations.forEach(
+                violation -> errorDescList.add(getErrorDescription(violation, interfaceName)));
+        return errorDescList;
+    }
+ 
+    private BaseEventErrorsErrorListInner getErrorDescription(
+            final ConstraintViolation<T> violation, final String interfaceName) {
+ 
+        final String errorCode = violation.getMessage();
+        String fieldValue = "";
+        final BaseEventErrorsErrorListInner.TypeEnum type = getErrorTypeFromErrorCode(errorCode.charAt(0));
+        final String propertyPath = violation.getPropertyPath().toString();
+        final String titleKey = errorCode + CMDSConstants.TITLE;
+ 
+        BaseEventErrorsErrorListInner errorDescription = new BaseEventErrorsErrorListInner();
+        errorDescription.setInterface(interfaceName);
+        errorDescription.setErrorCode(errorCode);
+        errorDescription.setType(type);
+        errorDescription.setMessage(errorCodeMapper.get(errorCode));
+        errorDescription.setTitle(errorCodeMapper.get(titleKey));
+ 
+ 
+        errorDescription =
+                CMDSLPRExceptionUtils.populateSourceInformation(errorDescription, propertyPath, fieldValue);
+        return errorDescription;
+    }
+ 
+    private static final Map<Character, BaseEventErrorsErrorListInner.TypeEnum> errorTypeMap;
+ 
+ 
+    public static BaseEventErrorsErrorListInner.TypeEnum getErrorTypeFromErrorCode(char code) {
+        return  errorTypeMap.get(code);
+    }
+ 
+    static {
+        Map<Character, BaseEventErrorsErrorListInner.TypeEnum> errorTypeIdentifierMap = new HashMap();
+        errorTypeIdentifierMap.put('V', BaseEventErrorsErrorListInner.TypeEnum.VALIDATION);
+        errorTypeIdentifierMap.put('W', BaseEventErrorsErrorListInner.TypeEnum.WARNING);
+        errorTypeIdentifierMap.put('E', BaseEventErrorsErrorListInner.TypeEnum.ERROR);
+        errorTypeMap = Collections.unmodifiableMap(errorTypeIdentifierMap);
+    }
+}
+ 
