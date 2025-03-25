@@ -1,34 +1,78 @@
 package com.ielts.cmds.lpr.infrastructure.config;
-
+ 
 import org.junit.jupiter.api.Test;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.web.SecurityFilterChain;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.mock;
+import org.junit.jupiter.api.extension.ExtendWith;
+
+import org.mockito.InjectMocks;
+
+import org.mockito.Mock;
+
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+
+import org.springframework.security.web.DefaultSecurityFilterChain;
+
+import org.springframework.security.web.SecurityFilterChain;
+ 
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+
+import static org.mockito.ArgumentMatchers.any;
+
 import static org.mockito.Mockito.verify;
+
 import static org.mockito.Mockito.when;
+ 
+@ExtendWith(MockitoExtension.class)
 
 class SecurityConfigTest {
+ 
+    @Mock
 
+    private HttpSecurity httpSecurity;
+ 
+    @InjectMocks
+
+    private SecurityConfig securityConfig;
+ 
+    @Mock
+
+    private DefaultSecurityFilterChain securityFilterChain;
+ 
     @Test
-    void filterChain_ShouldConfigureSecurityProperly() throws Exception {
-        // Arrange
-        SecurityConfig securityConfig = new SecurityConfig();
-        HttpSecurity http = mock(HttpSecurity.class);
-        HttpSecurity.Customizer customizer = mock(HttpSecurity.Customizer.class);
-        
-        when(http.authorizeHttpRequests(any())).thenReturn(http);
-        when(http.csrf(any())).thenReturn(http);
-        when(http.cors(any())).thenReturn(http);
-        
-        // Act
-        SecurityFilterChain filterChain = securityConfig.filterChain(http);
-        
-        // Assert
-        assertNotNull(filterChain);
-        verify(http).authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
-        verify(http).csrf(AbstractHttpConfigurer::disable);
-        verify(http).cors(AbstractHttpConfigurer::disable);
+
+    void testFilterChain() throws Exception {
+
+        when(httpSecurity.authorizeHttpRequests(any())).thenReturn(httpSecurity);
+
+        when(httpSecurity.csrf(any())).thenReturn(httpSecurity);
+
+        when(httpSecurity.cors(any())).thenReturn(httpSecurity);
+
+        when(httpSecurity.build()).thenReturn(securityFilterChain);
+ 
+        // Call the filterChain method
+
+        SecurityFilterChain result = securityConfig.filterChain(httpSecurity);
+ 
+        // Verify the expected interactions
+
+        verify(httpSecurity).authorizeHttpRequests(any());
+
+        verify(httpSecurity).csrf(any());
+
+        verify(httpSecurity).cors(any());
+
+        verify(httpSecurity).build();
+ 
+        // Assert that the result is not null
+
+        assertNotNull(result);
+
     }
+ 
+ 
 }
+
+ 
