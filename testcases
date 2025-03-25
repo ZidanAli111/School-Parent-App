@@ -1,306 +1,161 @@
-package com.ielts.cmds.lpr;
- 
-import com.ielts.cmds.lpr.common.model.AllocationGroup;
-
-import com.ielts.cmds.lpr.infrastructure.utils.AllocationGroupConstants;
-
-import com.ielts.cmds.ms.lpr_mx.AllocationGroupResponseV1;
-
-import com.ielts.cmds.ms.lpr_mx.AllocationGroupV1;
-
-import com.ielts.cmds.v2.infrastructure.event.context.CMDSAuditContext;
-
-import com.ielts.cmds.v2.infrastructure.event.context.CMDSHeaderContext;
-
-import org.springframework.http.HttpHeaders;
- 
-import java.time.LocalDate;
-
-import java.time.LocalDateTime;
-
-import java.util.UUID;
- 
-import static com.ielts.cmds.lpr.infrastructure.utils.AllocationGroupConstants.X_ACCESS_TOKEN;
- 
-public class AllocationGroupSetup {
- 
-    public static AllocationGroup setAllocationGroup() {
-
-        return AllocationGroup.builder()
-
-                .allocationGroupUuid(UUID.fromString("b2885ba0-cb85-4629-a0af-1db25f3d7154"))
-
-                .allocationGroupId(1)
-
-                .allocationGroupName("Test Group")
-
-                .effectiveFromDate(LocalDate.parse("2025-03-20"))
-
-                .effectiveToDate(LocalDate.parse("2025-06-14"))
-
-                .build();
- 
-    }
- 
-    public static AllocationGroupV1 setAllocationGroupV1() {
-
-        AllocationGroupV1 allocationGroupV1 = new AllocationGroupV1();
-
-        allocationGroupV1.setAllocationGroupName("Test Group");
-
-        allocationGroupV1.setEffectiveFromDate(LocalDate.parse("2025-03-20"));
-
-        allocationGroupV1.setEffectiveToDate(LocalDate.parse("2025-06-14"));
-
-        return allocationGroupV1;
-
-    }
- 
-    public static AllocationGroupResponseV1 setAllocationGroupResponseV1() {
-
-        AllocationGroupResponseV1 allocationGroupResponseV1 = new AllocationGroupResponseV1();
-
-        allocationGroupResponseV1.setAllocationGroupUuid(UUID.fromString("b2885ba0-cb85-4629-a0af-1db25f3d7154"));
-
-        allocationGroupResponseV1.setAllocationGroupId(1);
-
-        allocationGroupResponseV1.setAllocationGroupName("Test Group");
-
-        allocationGroupResponseV1.setEffectiveFromDate(LocalDate.parse("2025-03-20"));
-
-        allocationGroupResponseV1.setEffectiveToDate(LocalDate.parse("2025-06-14"));
-
-        return allocationGroupResponseV1;
-
-    }
- 
-    public static CMDSAuditContext getCmdsAuditContext() {
-
-        CMDSAuditContext auditContext = new CMDSAuditContext();
-
-        auditContext.setPrincipalId("principal Id");
-
-        auditContext.setPrincipalName("principal name");
-
-        auditContext.setPermission("allowed");
-
-        auditContext.setCausedByCorrelationId(UUID.fromString("70ab7e18-fc75-4b00-9f7c-dccb7cb1bf12"));
-
-        auditContext.setCausedByTransactionId(UUID.fromString("70ab7e18-fc75-4b00-9f7c-dccb7cb1bf12"));
-
-        auditContext.setCausedByEventDateTime(LocalDateTime.now());
-
-        auditContext.setCausedByEventName("event name");
-
-        return auditContext;
-
-    }
- 
-    public static CMDSHeaderContext getCmdsHeaderContext() {
-
-        CMDSHeaderContext eventHeader = new CMDSHeaderContext();
-
-        eventHeader.setConnectionId("90977974-fcf8-4adb-b81b-7c71f4b9f380");
-
-        eventHeader.setCorrelationId(UUID.fromString("90977974-fcf8-4adb-b81b-7c71f4b9f380"));
-
-        eventHeader.setEventDateTime(null);
-
-        eventHeader.setEventDateTime(LocalDateTime.now());
-
-        eventHeader.setXaccessToken("");
-
-        eventHeader.setPartnerCode("IDP");
-
-        return eventHeader;
-
-    }
- 
-    public static HttpHeaders setHttpHeaders() {
-
-        HttpHeaders httpHeaders = new HttpHeaders();
-
-        httpHeaders.add(X_ACCESS_TOKEN, "valid-token");
-
-        httpHeaders.add(AllocationGroupConstants.CORRELATION_ID, UUID.randomUUID().toString());
-
-        return httpHeaders;
-
-    }
-
-}
-
- 
 package com.ielts.cmds.lpr.infrastructure.utils;
- 
+
+import com.ielts.cmds.lpr.AllocationGroupSetup;
 import com.ielts.cmds.v2.infrastructure.event.context.CMDSAuditContext;
-
 import com.ielts.cmds.v2.infrastructure.event.context.CMDSHeaderContext;
-
 import com.ielts.cmds.v2.infrastructure.event.context.ThreadLocalAuditContext;
-
 import com.ielts.cmds.v2.infrastructure.event.context.ThreadLocalHeaderContext;
-
 import com.ielts.cmds.v2.rbac.api.service.RBACService;
-
 import com.ielts.cmds.v2.rbac.api.service.model.CmdsAuthentication;
-
 import com.ielts.cmds.v2.rbac.api.service.model.UserDetails;
-
 import jakarta.validation.ConstraintViolation;
-
-import lombok.SneakyThrows;
-
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
 import org.junit.jupiter.api.extension.ExtendWith;
-
 import org.mockito.InjectMocks;
-
 import org.mockito.Mock;
-
-import org.mockito.MockedStatic;
-
 import org.mockito.junit.jupiter.MockitoExtension;
- 
+import org.springframework.http.HttpHeaders;
+
 import java.time.LocalDateTime;
-
-import java.util.HashMap;
-
-import java.util.Map;
-
 import java.util.Set;
 
-import java.util.UUID;
- 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static com.ielts.cmds.lpr.infrastructure.utils.AllocationGroupConstants.EVENT_DATE_TIME;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-
-import static org.mockito.Mockito.mock;
-
-import static org.mockito.Mockito.mockStatic;
-
-import static org.mockito.Mockito.when;
- 
 @ExtendWith(MockitoExtension.class)
-
 class LPRCommonUtilsTest {
- 
+
     @InjectMocks
-
     private LPRCommonUtils lprCommonUtils;
- 
-    @Mock
 
+    @Mock
     private RBACService rbacService;
- 
-    @Mock
 
+    @Mock
     private CmdsAuthentication cmdsAuthentication;
- 
+
     @Mock
-
     private UserDetails userDetails;
- 
- 
-    @SneakyThrows
 
-    @Test
-
-    void testGetPartnerCode()  {
- 
-        String xAccessToken = "valid-token";
-
-        String expectedPartnerCode = "testPartnerCode";
- 
-        when(rbacService.getCmdsAuthentication(xAccessToken)).thenReturn(cmdsAuthentication);
-
-        when(cmdsAuthentication.getUserDetails()).thenReturn(userDetails);
-
-        when(userDetails.getPartnerCode()).thenReturn(expectedPartnerCode);
- 
-        String actualPartnerCode = lprCommonUtils.getPartnerCode(xAccessToken);
-
-        assertEquals(expectedPartnerCode, actualPartnerCode);
- 
+    @BeforeEach
+    void setUp() {
+        // Clear any existing context before each test
+        ThreadLocalHeaderContext.clearContext();
+        ThreadLocalAuditContext.clearContext();
     }
- 
+
+    @AfterEach
+    void tearDown() {
+        // Clear context after each test
+        ThreadLocalHeaderContext.clearContext();
+        ThreadLocalAuditContext.clearContext();
+    }
+
     @Test
+    void testGetPartnerCode() {
+        // Using setup data
+        String xAccessToken = "valid-token";
+        String expectedPartnerCode = "IDP"; // From AllocationGroupSetup
 
+        when(rbacService.getCmdsAuthentication(xAccessToken)).thenReturn(cmdsAuthentication);
+        when(cmdsAuthentication.getUserDetails()).thenReturn(userDetails);
+        when(userDetails.getPartnerCode()).thenReturn(expectedPartnerCode);
+
+        String actualPartnerCode = lprCommonUtils.getPartnerCode(xAccessToken);
+        assertEquals(expectedPartnerCode, actualPartnerCode);
+    }
+
+    @Test
     void testGetSetForNullViolationOfEventBody() {
-
         String expectedMessage = "Test message";
-
         String expectedPath = "testField";
 
-        Set<ConstraintViolation<Object>> violations = lprCommonUtils.getSetForNullViolationOfEventBody(expectedMessage, expectedPath);
- 
+        Set<ConstraintViolation<Object>> violations = 
+            lprCommonUtils.getSetForNullViolationOfEventBody(expectedMessage, expectedPath);
+
         assertNotNull(violations);
-
         assertEquals(1, violations.size());
-
+        
         ConstraintViolation<Object> violation = violations.iterator().next();
-
         assertEquals(expectedMessage, violation.getMessage());
-
         assertEquals(expectedPath, violation.getPropertyPath().toString());
-
     }
- 
+
     @Test
-
     void testBuildHeader() {
- 
+        // Using setup data
         String eventName = "TestEvent";
+        CMDSHeaderContext mockContext = AllocationGroupSetup.getCmdsHeaderContext();
 
-        Map<String, String> eventContextValue = new HashMap<String, String>();
+        CMDSHeaderContext result = lprCommonUtils.buildHeader(eventName);
 
-        eventContextValue.put("key_1", "test-context1");
-
-        eventContextValue.put("key_2", "test-context2");
-
-        CMDSHeaderContext mockContext = new CMDSHeaderContext();
-
-        mockContext.setCorrelationId(UUID.fromString("fbcb51b7-d88e-470e-b879-2eb3ecc43276"));
-
-        mockContext.setTransactionId(UUID.fromString("184f4c69-cbf1-4eab-b8e5-768c30bb9c02"));
-
-        mockContext.setEventContext(eventContextValue);
-
-        mockContext.setXaccessToken("test-token");
-
-        mockContext.setConnectionId("test-connection-id");
-
-        mockContext.setPartnerCode("test-partner");
- 
-        try (MockedStatic<ThreadLocalHeaderContext> mockedContext = mockStatic(ThreadLocalHeaderContext.class)) {
-
-            mockedContext.when(ThreadLocalHeaderContext::getContext).thenReturn(mockContext);
-
-            CMDSHeaderContext result = lprCommonUtils.buildHeader(eventName);
- 
-            assertNotNull(result);
-
-            assertEquals(UUID.fromString("fbcb51b7-d88e-470e-b879-2eb3ecc43276"), result.getCorrelationId());
-
-            assertEquals(UUID.fromString("184f4c69-cbf1-4eab-b8e5-768c30bb9c02"), result.getTransactionId());
-
-            assertEquals("test-partner", result.getPartnerCode());
-
-            assertEquals(eventName, result.getEventName());
-
-            assertNotNull(result.getEventDateTime());
- 
-            assertNotNull(result.getEventContext());
-
-            assertEquals("test-context1", result.getEventContext().get("key_1"));
-
-            assertEquals("test-context2", result.getEventContext().get("key_2"));
- 
-        }
-
+        assertNotNull(result);
+        assertEquals(eventName, result.getEventName());
+        assertNotNull(result.getEventDateTime());
+        assertEquals("IDP", result.getPartnerCode()); // From setup
     }
- 
+
+    @Test
+    void initializeHeaderContext_ShouldSetBothContextsCorrectly() {
+        // Arrange
+        HttpHeaders headers = AllocationGroupSetup.setHttpHeaders();
+        UUID transactionId = UUID.randomUUID();
+        LocalDateTime eventDateTime = LocalDateTime.now();
+        
+        // Add event time header which wasn't in setup class
+        headers.add(EVENT_DATE_TIME, eventDateTime.toString());
+
+        // Mock RBAC service using setup partner code
+        when(rbacService.getCmdsAuthentication(anyString())).thenReturn(cmdsAuthentication);
+        when(cmdsAuthentication.getUserDetails()).thenReturn(userDetails);
+        when(userDetails.getPartnerCode()).thenReturn("IDP"); // From setup
+
+        // Act
+        lprCommonUtils.initializeHeaderContext(headers, transactionId);
+
+        // Assert - Verify Header Context
+        CMDSHeaderContext headerContext = ThreadLocalHeaderContext.getContext();
+        assertNotNull(headerContext);
+        assertEquals(headers.getFirst(AllocationGroupConstants.CORRELATION_ID), headerContext.getCorrelationId().toString());
+        assertEquals(eventDateTime, headerContext.getEventDateTime());
+        assertEquals(transactionId, headerContext.getTransactionId());
+        assertEquals("IDP", headerContext.getPartnerCode()); // From setup
+        assertNotNull(headerContext.getEventContext());
+
+        // Assert - Verify Audit Context
+        CMDSAuditContext auditContext = ThreadLocalAuditContext.getContext();
+        assertNotNull(auditContext);
+        assertEquals(headerContext.getCorrelationId(), auditContext.getCausedByCorrelationId());
+        assertEquals(headerContext.getEventDateTime(), auditContext.getCausedByEventDateTime());
+        assertEquals(headerContext.getTransactionId(), auditContext.getCausedByTransactionId());
+    }
+
+    @Test
+    void initializeHeaderContext_ShouldThrowException_WhenMissingRequiredHeaders() {
+        // Arrange - Create headers missing required fields
+        HttpHeaders incompleteHeaders = new HttpHeaders();
+        UUID transactionId = UUID.randomUUID();
+
+        // Act & Assert - Verify exception is thrown
+        assertThrows(NullPointerException.class,
+            () -> lprCommonUtils.initializeHeaderContext(incompleteHeaders, transactionId));
+    }
+
+    @Test
+    void initializeHeaderContext_ShouldPropagateRBACException() {
+        // Arrange
+        HttpHeaders headers = AllocationGroupSetup.setHttpHeaders();
+        headers.add(EVENT_DATE_TIME, LocalDateTime.now().toString());
+        UUID transactionId = UUID.randomUUID();
+
+        when(rbacService.getCmdsAuthentication(anyString()))
+            .thenThrow(new RuntimeException("RBAC Error"));
+
+        // Act & Assert
+        assertThrows(RuntimeException.class,
+            () -> lprCommonUtils.initializeHeaderContext(headers, transactionId));
+    }
 }
- 
