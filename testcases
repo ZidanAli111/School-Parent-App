@@ -1,1 +1,85 @@
-c
+package com.ielts.cmds.lpr.controller;
+ 
+import com.ielts.cmds.lpr.domain.CreateAllocationGroupDomainService;
+import com.ielts.cmds.lpr.domain.UpdateAllocationGroupDomainService;
+import com.ielts.cmds.lpr.domain.ViewAllocationGroupDomainService;
+import com.ielts.cmds.lpr.infrastructure.utils.LPRCommonUtils;
+import com.ielts.cmds.ms.lpr_mx.AllocationGroupResponseV1;
+import com.ielts.cmds.ms.lpr_mx.AllocationGroupV1;
+import com.ielts.cmds.v2.common.logger.util.CMDSLoggerUtils;
+import com.ielts.cmds.v2.infrastructure.event.context.ThreadLocalHeaderContext;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+ 
+import java.util.List;
+import java.util.UUID;
+ 
+import static com.ielts.cmds.lpr.infrastructure.utils.AllocationGroupConstants.ALLOCATION_GROUP_UNIT;
+ 
+@CrossOrigin(origins = "${ui.allowedOrigin}")
+@Slf4j
+@RestController
+@RequestMapping("/v1/allocationgroup")
+@RequiredArgsConstructor
+public class AllocationGroupController {
+ 
+    private final CreateAllocationGroupDomainService createAllocationGroupDomainService;
+    private final UpdateAllocationGroupDomainService updateAllocationGroupDomainService;
+    private final ViewAllocationGroupDomainService viewAllocationGroupDomainService;
+    private final CMDSLoggerUtils loggerUtil;
+    private final LPRCommonUtils commonUtils;
+ 
+    @PostMapping(value = "/add")
+    ResponseEntity<AllocationGroupResponseV1> createAllocationGroup(@RequestBody AllocationGroupV1 allocationGroup, @RequestHeader HttpHeaders httpHeaders) {
+ 
+        log.debug("Inside create allocation group controller: {}", httpHeaders);
+        UUID transactionId = UUID.randomUUID();
+        commonUtils.initializeHeaderContext(httpHeaders, transactionId);
+ 
+        loggerUtil.initializeMDCContext(String.valueOf(transactionId), ALLOCATION_GROUP_UNIT, String.valueOf(ThreadLocalHeaderContext.getContext().getCorrelationId()));
+ 
+        return ResponseEntity.status(HttpStatus.OK).body(createAllocationGroupDomainService.addAllocationGroup(allocationGroup));
+    }
+ 
+    @PutMapping("/update/{allocationGroupUuid}")
+    ResponseEntity<AllocationGroupResponseV1> updateAllocationGroup(@PathVariable UUID allocationGroupUuid,
+                                                                    @RequestBody AllocationGroupV1 allocationGroupV1,
+                                                                    @RequestHeader HttpHeaders httpHeaders) {
+        log.debug("Inside update allocation group controller {}", httpHeaders);
+ 
+        UUID transactionId = UUID.randomUUID();
+        commonUtils.initializeHeaderContext(httpHeaders, transactionId);
+ 
+        loggerUtil.initializeMDCContext(String.valueOf(transactionId), ALLOCATION_GROUP_UNIT, String.valueOf(ThreadLocalHeaderContext.getContext().getCorrelationId()));
+ 
+        return ResponseEntity.status(HttpStatus.OK).body(updateAllocationGroupDomainService.editAllocationGroup(allocationGroupV1, allocationGroupUuid));
+ 
+    }
+ 
+ 
+    @GetMapping
+    ResponseEntity<List<AllocationGroupResponseV1>> viewAllAllocationGroup(@RequestHeader HttpHeaders httpHeaders) {
+        log.debug("Inside Add allocation group controller: {}", httpHeaders);
+        UUID transactionId = UUID.randomUUID();
+        commonUtils.initializeHeaderContext(httpHeaders, transactionId);
+ 
+        loggerUtil.initializeMDCContext(String.valueOf(transactionId), ALLOCATION_GROUP_UNIT, String.valueOf(ThreadLocalHeaderContext.getContext().getCorrelationId()));
+        var allAllocationGroup = viewAllocationGroupDomainService.viewAllAllocationGroup();
+        return ResponseEntity.status(HttpStatus.OK).body(allAllocationGroup);
+    }
+ 
+ 
+}
+ 
