@@ -1,1 +1,297 @@
-c
+import com.ielts.cmds.v2.infrastructure.event.context.ThreadLocalHeaderContext;
+
+import com.ielts.cmds.v2.rbac.api.service.RBACService;
+
+import com.ielts.cmds.v2.serialization.application.utils.CMDSThreadLocalContextService;
+
+import com.ielts.cmds.v2.serialization.domain.AbstractCMDSDomainService;
+
+import jakarta.validation.ConstraintViolation;
+
+import lombok.SneakyThrows;
+
+import lombok.extern.slf4j.Slf4j;
+
+import org.springframework.context.ApplicationEventPublisher;
+
+import org.springframework.stereotype.Service;
+
+import org.springframework.transaction.annotation.Transactional;
+ 
+import java.util.List;
+
+import java.util.Optional;
+
+import java.util.Set;
+
+import java.util.UUID;
+ 
+import static com.ielts.cmds.lpr.infrastructure.utils.AllocationGroupConstants.AG_UPDATE_ERROR_CODE;
+
+import static com.ielts.cmds.lpr.infrastructure.utils.AllocationGroupConstants.ALLOCATION_GROUP_CHANGED;
+
+import static com.ielts.cmds.lpr.infrastructure.utils.AllocationGroupConstants.UNAUTHORISED_TO_UPDATE_ALLOCATION_GROUP;
+
+import static com.ielts.cmds.lpr.infrastructure.utils.AllocationGroupConstants.UPDATE_ALLOCATION_GROUP_PERMISSION_FAILURE;
+ 
+@Slf4j
+
+@Service
+
+public class UpdateAllocationGroupDomainService extends AbstractCMDSDomainService<AllocationGroupChanged> {
+ 
+    private final RBACService rbacService;
+
+    private final LPRCommonUtils lprCommonUtils;
+
+    private final AllocationGroupMapper allocationGroupMapper;
+
+    private final AllocationGroupRepository allocationGroupRepository;
+ 
+    public UpdateAllocationGroupDomainService(ApplicationEventPublisher publisher,
+
+                                              ObjectMapper objectMapper,
+
+                                              CMDSThreadLocalContextService cmdsThreadLocalContextService,
+
+                                              RBACService rbacService, LPRCommonUtils lprCommonUtils,
+
+                                              AllocationGroupMapper allocationGroupMapper,
+
+                                              AllocationGroupRepository allocationGroupRepository) {
+
+        super(publisher, objectMapper, "true", cmdsThreadLocalContextService);
+ 
+        this.rbacService = rbacService;
+
+        this.lprCommonUtils = lprCommonUtils;
+
+        this.allocationGroupMapper = allocationGroupMapper;
+
+        this.allocationGroupRepository = allocationGroupRepository;
+
+    }
+ 
+    @SneakyThrows
+
+    @Transactional
+
+    public AllocationGroupResponseV1 editAllocationGroup(AllocationGroupV1 allocationGroupReqBody, UUID allocationGroupUuid) {
+
+        log.debug("Inside update Allocation Group Domain Service");
+
+        boolean isAuthorised = false;
+ 
+        log.debug("rbac service started");
+ 
+        isAuthorised = rbacService.isAuthorised(ThreadLocalHeaderContext.getContext().getXaccessToken(), AllocationGroupConstants.AG_UPDATE);
+
+        log.debug("Checking isAuthorized {}", isAuthorised);
+ 
+        if (!isAuthorised) {
+
+            Set<ConstraintViolation<Object>> authorizationViolations = lprCommonUtils.
+
+                    getSetForNullViolationOfEventBody(AG_UPDATE_ERROR_CODE, UNAUTHORISED_TO_UPDATE_ALLOCATION_GROUP);
+
+            List<BaseEventErrorsErrorListInner> authErrorResponse = allocationGroupMapper.generateLPRErrorResponse(authorizationViolations,
+
+                    AllocationGroupConstants.AG_UPDATE);
+
+            log.error("Update allocation group permission failure {}", UPDATE_ALLOCATION_GROUP_PERMISSION_FAILURE);
+
+            throw new UnauthorizedException(authErrorResponse, UPDATE_ALLOCATION_GROUP_PERMISSION_FAILURE);
+
+        }
+ 
+        Optional<AllocationGroup> allocationGroupUUID = allocationGroupRepository.findById(allocationGroupUuid);
+ 
+        AllocationGroup savedAllocationGroup = allocationGroupRepository.save(allocationGroupMapper
+
+                .mapUpdateRequestToEntity(allocationGroupReqBody, allocationGroupUUID));
+ 
+        AllocationGroupResponseV1 allocationGroupResponse =
+
+                allocationGroupMapper.mapAllocationGroupV1ToAllocationGroup(savedAllocationGroup);
+ 
+        AllocationGroupChanged allocationGroupChanged = allocationGroupMapper.mapAllocationGroupChangeEvent(allocationGroupResponse);
+
+        lprCommonUtils.buildHeader(ALLOCATION_GROUP_CHANGED);
+ 
+        publishEvent(allocationGroupChanged);
+ 
+        log.debug("Allocation Group updated successfully");
+ 
+        return allocationGroupResponse;
+
+    }
+ 
+}
+
+
+
+
+
+////////////////////////////////////////////////
+
+
+
+
+package com.ielts.cmds.lpr.infrastructure.mapper;
+ 
+import com.ielts.cmds.api.evt_228.AllocationGroupChanged;
+
+import com.ielts.cmds.lpr.common.model.AllocationGroup;
+
+import com.ielts.cmds.lpr.common.repository.AllocationGroupRepository;
+
+import com.ielts.cmds.lpr.infrastructure.exception.CMDSLPRErrorResolver;
+
+import com.ielts.cmds.ms.lpr_mx.AllocationGroupResponseV1;
+
+import com.ielts.cmds.ms.lpr_mx.AllocationGroupV1;
+
+import com.ielts.cmds.ms.lpr_mx.BaseEventErrorsErrorListInner;
+
+import jakarta.validation.ConstraintViolation;
+
+import lombok.RequiredArgsConstructor;
+
+import lombok.extern.slf4j.Slf4j;
+
+import org.springframework.stereotype.Service;
+ 
+import java.util.List;
+
+import java.util.Optional;
+
+import java.util.Set;
+ 
+@Slf4j
+
+@Service
+
+@RequiredArgsConstructor
+
+public class AllocationGroupMapper {
+ 
+    private final CMDSLPRErrorResolver<Object> lprErrorResolver;
+ 
+    private final AllocationGroupRepository allocationGroupRepository;
+ 
+    public AllocationGroupResponseV1 mapAllocationGroupV1ToAllocationGroup(AllocationGroup allocationGroup) {
+ 
+        AllocationGroupResponseV1 allocationGroupResponseV1 = new AllocationGroupResponseV1();
+
+        allocationGroupResponseV1.setAllocationGroupUuid(allocationGroup.getAllocationGroupUuid());
+
+        allocationGroupResponseV1.setAllocationGroupName(allocationGroup.getAllocationGroupName());
+
+        allocationGroupResponseV1.setAllocationGroupId(allocationGroup.getAllocationGroupId());
+
+        allocationGroupResponseV1.setEffectiveFromDate(allocationGroup.getEffectiveFromDate());
+
+        allocationGroupResponseV1.setEffectiveToDate(allocationGroup.getEffectiveToDate());
+ 
+        return allocationGroupResponseV1;
+
+    }
+ 
+    public AllocationGroup mapRequestToEntity(AllocationGroupV1 allocationGroupReqBody) {
+ 
+        return AllocationGroup.builder()
+
+                .allocationGroupId(allocationGroupRepository.getNextAllocationGroupId())
+
+                .allocationGroupName(allocationGroupReqBody.getAllocationGroupName())
+
+                .effectiveFromDate(allocationGroupReqBody.getEffectiveFromDate())
+
+                .effectiveToDate((allocationGroupReqBody.getEffectiveToDate()))
+
+                .build();
+ 
+    }
+ 
+    public AllocationGroup mapUpdateRequestToEntity(AllocationGroupV1 allocationGroupReqBody, Optional<AllocationGroup> allocationGroupUuid) {
+ 
+        if (allocationGroupUuid.isPresent()) {
+
+            return AllocationGroup.builder()
+
+                    .allocationGroupName(allocationGroupReqBody.getAllocationGroupName())
+
+                    .effectiveFromDate(allocationGroupReqBody.getEffectiveFromDate())
+
+                    .effectiveToDate((allocationGroupReqBody.getEffectiveToDate()))
+
+                    .build();
+
+        }
+
+        return null;
+
+    }
+ 
+ 
+    public AllocationGroupChanged mapAllocationGroupChangeEvent(AllocationGroupResponseV1 allocationGroupResponse) {
+ 
+        AllocationGroupChanged allocationGroupChanged = new AllocationGroupChanged();
+
+        allocationGroupChanged.setAllocationGroupUuid(allocationGroupResponse.getAllocationGroupUuid());
+
+        allocationGroupChanged.setAllocationGroupId(allocationGroupResponse.getAllocationGroupId());
+
+        allocationGroupChanged.setAllocationGroupName(allocationGroupResponse.getAllocationGroupName());
+
+        allocationGroupChanged.setEffectiveFromDate(allocationGroupResponse.getEffectiveFromDate());
+
+        allocationGroupChanged.setEffectiveToDate(allocationGroupResponse.getEffectiveToDate());
+ 
+        return allocationGroupChanged;
+
+    }
+ 
+    /**
+
+     * Generates an error response for constraint violations.
+
+     *
+
+     * @param constraintViolations the constraint violations
+
+     * @return the error response
+
+     */
+
+    public List<BaseEventErrorsErrorListInner> generateLPRErrorResponse(Set<ConstraintViolation<Object>> constraintViolations, String permission) {
+
+        return lprErrorResolver.populateErrorResponse(constraintViolations, permission);
+
+    }
+ 
+}
+
+
+//////////////////////////////////////////////////////////////
+
+
+
+  @PutMapping("/update/{allocationGroupUuid}")
+    ResponseEntity<AllocationGroupResponseV1> updateAllocationGroup(@PathVariable UUID allocationGroupUuid,
+                                                                    @RequestBody AllocationGroupV1 allocationGroupV1,
+                                                                    @RequestHeader HttpHeaders httpHeaders) {
+        log.debug("Inside update allocation group controller {}", httpHeaders);
+ 
+        UUID transactionId = UUID.randomUUID();
+        commonUtils.initializeHeaderContext(httpHeaders, transactionId);
+ 
+        loggerUtil.initializeMDCContext(String.valueOf(transactionId), ALLOCATION_GROUP_UNIT, String.valueOf(ThreadLocalHeaderContext.getContext().getCorrelationId()));
+ 
+        return ResponseEntity.status(HttpStatus.OK).body(updateAllocationGroupDomainService.editAllocationGroup(allocationGroupV1, allocationGroupUuid));
+ 
+    }
+
+///////////////////////////////////////////////////////////////////////////
+
+
