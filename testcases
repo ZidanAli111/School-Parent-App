@@ -1,1 +1,271 @@
-c
+package com.ielts.cmds.lpr.domain;
+ 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import com.ielts.cmds.api.evt_228.AllocationGroupChanged;
+
+import com.ielts.cmds.lpr.common.model.AllocationGroup;
+
+import com.ielts.cmds.lpr.common.repository.AllocationGroupRepository;
+
+import com.ielts.cmds.lpr.infrastructure.exception.UnauthorizedException;
+
+import com.ielts.cmds.lpr.infrastructure.mapper.AllocationGroupMapper;
+
+import com.ielts.cmds.lpr.infrastructure.utils.AllocationGroupConstants;
+
+import com.ielts.cmds.lpr.infrastructure.utils.LPRCommonUtils;
+
+import com.ielts.cmds.ms.lpr_mx.AllocationGroupResponseV1;
+
+import com.ielts.cmds.ms.lpr_mx.AllocationGroupV1;
+
+import com.ielts.cmds.ms.lpr_mx.BaseEventErrorsErrorListInner;
+
+import com.ielts.cmds.v2.infrastructure.event.context.CMDSAuditContext;
+
+import com.ielts.cmds.v2.infrastructure.event.context.CMDSHeaderContext;
+
+import com.ielts.cmds.v2.infrastructure.event.context.ThreadLocalAuditContext;
+
+import com.ielts.cmds.v2.infrastructure.event.context.ThreadLocalHeaderContext;
+
+import com.ielts.cmds.v2.rbac.api.service.RBACService;
+
+import com.ielts.cmds.v2.serialization.application.utils.CMDSThreadLocalContextService;
+
+import jakarta.validation.ConstraintViolation;
+
+import lombok.SneakyThrows;
+
+import org.junit.jupiter.api.BeforeEach;
+
+import org.junit.jupiter.api.Test;
+
+import org.junit.jupiter.api.extension.ExtendWith;
+
+import org.mockito.InjectMocks;
+
+import org.mockito.Mock;
+
+import org.mockito.Spy;
+
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import org.springframework.context.ApplicationEventPublisher;
+
+import org.springframework.test.util.ReflectionTestUtils;
+ 
+import java.util.ArrayList;
+
+import java.util.Collections;
+
+import java.util.List;
+
+import java.util.Set;
+ 
+import static com.ielts.cmds.lpr.AllocationGroupSetup.getCmdsAuditContext;
+
+import static com.ielts.cmds.lpr.AllocationGroupSetup.getCmdsHeaderContext;
+
+import static com.ielts.cmds.lpr.AllocationGroupSetup.setAllocationGroup;
+
+import static com.ielts.cmds.lpr.AllocationGroupSetup.setAllocationGroupResponseV1;
+
+import static com.ielts.cmds.lpr.AllocationGroupSetup.setAllocationGroupV1;
+
+import static com.ielts.cmds.lpr.infrastructure.utils.AllocationGroupConstants.AG_UPDATE_ERROR_CODE;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
+import static org.mockito.ArgumentMatchers.any;
+
+import static org.mockito.ArgumentMatchers.anyString;
+
+import static org.mockito.ArgumentMatchers.eq;
+
+import static org.mockito.Mockito.doNothing;
+
+import static org.mockito.Mockito.times;
+
+import static org.mockito.Mockito.verify;
+
+import static org.mockito.Mockito.when;
+ 
+@ExtendWith(MockitoExtension.class)
+
+public class UpdateAllocationGroupDomainServiceTest {
+ 
+    @Mock
+
+    private RBACService rbacService;
+ 
+    @Mock
+
+    private LPRCommonUtils lprCommonUtils;
+ 
+    @Mock
+
+    private AllocationGroupMapper allocationGroupMapper;
+ 
+    @Mock
+
+    private AllocationGroupRepository allocationGroupRepository;
+ 
+    @Mock
+
+    private ApplicationEventPublisher publisher;
+ 
+    @Mock
+
+    private ObjectMapper objectMapper;
+ 
+ 
+    @Mock
+
+    private CMDSThreadLocalContextService cmdsThreadLocalContextService;
+ 
+    @InjectMocks
+
+    @Spy
+
+    private UpdateAllocationGroupDomainService updateAllocationGroupDomainService;
+ 
+    private AllocationGroup allocationGroup;
+
+    private AllocationGroupV1 allocationGroupV1;
+
+    private AllocationGroupResponseV1 allocationGroupResponseV1;
+
+    private AllocationGroupChanged allocationGroupChanged;
+
+    @BeforeEach
+
+    void setUp() {
+
+        CMDSHeaderContext eventHeader = getCmdsHeaderContext();
+
+        ThreadLocalHeaderContext.setContext(eventHeader);
+
+        CMDSAuditContext auditContext = getCmdsAuditContext();
+
+        ThreadLocalAuditContext.setContext(auditContext);
+ 
+        ReflectionTestUtils.setField(updateAllocationGroupDomainService, "rbacService", rbacService);
+
+        ReflectionTestUtils.setField(updateAllocationGroupDomainService, "lprCommonUtils", lprCommonUtils);
+
+        ReflectionTestUtils.setField(updateAllocationGroupDomainService, "allocationGroupMapper", allocationGroupMapper);
+
+        ReflectionTestUtils.setField(updateAllocationGroupDomainService, "allocationGroupRepository", allocationGroupRepository);
+
+        ReflectionTestUtils.setField(updateAllocationGroupDomainService, "publisher", publisher);
+
+        ReflectionTestUtils.setField(updateAllocationGroupDomainService, "objectMapper", objectMapper);
+
+        ReflectionTestUtils.setField(updateAllocationGroupDomainService, "cmdsThreadLocalContextService", cmdsThreadLocalContextService);
+
+        allocationGroup = setAllocationGroup();
+
+        allocationGroupV1 = setAllocationGroupV1();
+
+        allocationGroupResponseV1 = setAllocationGroupResponseV1();
+ 
+    }
+ 
+ 
+    @SneakyThrows
+
+    @Test
+
+    void updateAllocationGroup_givenAuthorizedUser() {
+ 
+        when(rbacService.isAuthorised(anyString(), eq(AllocationGroupConstants.AG_UPDATE))).thenReturn(true);
+
+        when(allocationGroupMapper.mapRequestToEntity(allocationGroupV1)).thenReturn(allocationGroup);
+
+        when(allocationGroupRepository.save(allocationGroup)).thenReturn(allocationGroup);
+
+        doNothing().when(updateAllocationGroupDomainService).publishEvent(any());
+
+        when(allocationGroupMapper.mapAllocationGroupV1ToAllocationGroup(allocationGroup)).thenReturn(allocationGroupResponseV1);
+
+        when(allocationGroupMapper.mapAllocationGroupChangeEvent(allocationGroupResponseV1)).thenReturn(allocationGroupChanged);
+ 
+        AllocationGroupResponseV1 response = updateAllocationGroupDomainService.editAllocationGroup(allocationGroupV1,allocationGroup.getAllocationGroupUuid());
+ 
+        assertNotNull(response);
+
+        assertEquals(allocationGroupResponseV1, response);
+
+        assertEquals(allocationGroupResponseV1.getAllocationGroupUuid(), response.getAllocationGroupUuid());
+
+        assertEquals(allocationGroupResponseV1.getAllocationGroupId(), response.getAllocationGroupId());
+
+        assertEquals(allocationGroupResponseV1.getAllocationGroupName(), response.getAllocationGroupName());
+
+        assertEquals(allocationGroupResponseV1.getEffectiveFromDate(), response.getEffectiveFromDate());
+
+        assertEquals(allocationGroupResponseV1.getEffectiveToDate(), response.getEffectiveToDate());
+ 
+        verify(rbacService, times(1)).isAuthorised(anyString(), eq(AllocationGroupConstants.AG_UPDATE));
+
+        verify(allocationGroupMapper).mapRequestToEntity(allocationGroupV1);
+
+        verify(allocationGroupRepository).save(allocationGroup);
+
+        verify(allocationGroupMapper).mapAllocationGroupV1ToAllocationGroup(allocationGroup);
+
+        verify(allocationGroupMapper).mapAllocationGroupChangeEvent(allocationGroupResponseV1);
+
+        verify(lprCommonUtils).buildHeader("AllocationGroupChanged");
+
+        verify(updateAllocationGroupDomainService, times(1)).publishEvent(allocationGroupChanged);
+
+    }
+ 
+    @SneakyThrows
+
+    @Test
+
+    void updateAllocationGroup_givenUnauthorizedUser() {
+ 
+        when(rbacService.isAuthorised(anyString(), eq(AllocationGroupConstants.AG_UPDATE))).thenReturn(false);
+ 
+        Set<ConstraintViolation<Object>> violations = Collections.emptySet();
+
+        when(lprCommonUtils.getSetForNullViolationOfEventBody(AG_UPDATE_ERROR_CODE,
+
+                AllocationGroupConstants.UNAUTHORISED_TO_UPDATE_ALLOCATION_GROUP)).thenReturn(violations);
+ 
+        List<BaseEventErrorsErrorListInner> errorResponse = new ArrayList<>();
+
+        when(allocationGroupMapper.generateLPRErrorResponse(violations, AllocationGroupConstants.AG_UPDATE)).thenReturn(errorResponse);
+ 
+        UnauthorizedException unAuthorizedException = assertThrows(UnauthorizedException.class, () -> {
+
+            updateAllocationGroupDomainService.editAllocationGroup(allocationGroupV1,allocationGroup.getAllocationGroupUuid());
+
+        });
+ 
+        assertEquals(AllocationGroupConstants.UPDATE_ALLOCATION_GROUP_PERMISSION_FAILURE, unAuthorizedException.getMessage());
+
+        verify(rbacService, times(1)).isAuthorised(anyString(), eq(AllocationGroupConstants.AG_UPDATE));
+
+        verify(lprCommonUtils, times(1)).getSetForNullViolationOfEventBody("V3074",
+
+                AllocationGroupConstants.UNAUTHORISED_TO_UPDATE_ALLOCATION_GROUP);
+
+        verify(allocationGroupMapper, times(1)).generateLPRErrorResponse(violations,
+
+                AllocationGroupConstants.AG_UPDATE);
+
+    }
+ 
+ 
+}
+this is the test class that I wrote
