@@ -1,1 +1,62 @@
-v
+package com.ielts.cmds.lpr.domain;
+
+import com.ielts.cmds.lpr.common.model.AllocationGroup;
+import com.ielts.cmds.lpr.common.repository.AllocationGroupRepository;
+import com.ielts.cmds.lpr.infrastructure.exception.AllocationGroupNotFoundException;
+import com.ielts.cmds.lpr.infrastructure.exception.UnauthorizedException;
+import com.ielts.cmds.lpr.infrastructure.mapper.AllocationGroupMapper;
+import com.ielts.cmds.lpr.infrastructure.utils.AllocationGroupConstants;
+import com.ielts.cmds.lpr.infrastructure.utils.LPRCommonUtils;
+import com.ielts.cmds.ms.lpr_mx.AllocationGroupResponseV1;
+import com.ielts.cmds.ms.lpr_mx.BaseEventErrorsErrorListInner;
+import com.ielts.cmds.v2.infrastructure.event.context.ThreadLocalHeaderContext;
+import com.ielts.cmds.v2.rbac.api.service.RBACService;
+import jakarta.validation.ConstraintViolation;
+import lombok.AllArgsConstructor;
+import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
+
+import static com.ielts.cmds.lpr.infrastructure.utils.AllocationGroupConstants.AG_VIEW_ERROR_CODE;
+import static com.ielts.cmds.lpr.infrastructure.utils.AllocationGroupConstants.UNAUTHORISED_TO_VIEW_ALLOCATION_GROUP;
+import static com.ielts.cmds.lpr.infrastructure.utils.AllocationGroupConstants.VIEW_ALLOCATION_GROUP_PERMISSION_FAILURE;
+
+
+@Slf4j
+@AllArgsConstructor
+@Service
+public class ViewSingleAllocationGroupDomainService {
+    private final RBACService rbacService;
+
+    private final LPRCommonUtils lprCommonUtils;
+
+    private final AllocationGroupMapper allocationGroupMapper;
+
+    private final AllocationGroupRepository allocationGroupRepository;
+
+    @SneakyThrows
+        public AllocationGroupResponseV1 viewAllocationGroup (UUID allocationGroupUuid){
+            log.debug("Inside Allocation Group Domain Service View All");
+            boolean isAuthorised = rbacService.isAuthorised(ThreadLocalHeaderContext.getContext().getXaccessToken(), AllocationGroupConstants.AG_VIEW);
+
+            if (!isAuthorised) {
+                Set<ConstraintViolation<Object>> authorizationViolations = lprCommonUtils.
+                        getSetForNullViolationOfEventBody(AG_VIEW_ERROR_CODE, UNAUTHORISED_TO_VIEW_ALLOCATION_GROUP);
+                List<BaseEventErrorsErrorListInner> authErrorResponse = allocationGroupMapper.generateLPRErrorResponse(authorizationViolations,
+                        AllocationGroupConstants.AG_VIEW);
+                log.error("View allocation group permission failure {}", VIEW_ALLOCATION_GROUP_PERMISSION_FAILURE);
+                throw new UnauthorizedException(authErrorResponse, VIEW_ALLOCATION_GROUP_PERMISSION_FAILURE);
+            }
+
+            log.debug("Viewing allocation group");
+            AllocationGroup allocationGroupResponseV1Result = allocationGroupRepository.findById(allocationGroupUuid).orElseThrow(
+                    () -> new AllocationGroupNotFoundException("AllocationGroup with UUId"));
+            AllocationGroupResponseV1 allocationGroupResponseV1 = allocationGroupMapper
+                    .mapAllocationGroupV1ToAllocationGroup(allocationGroupResponseV1Result);
+            return allocationGroupResponseV1;
+        }
+    }
