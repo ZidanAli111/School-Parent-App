@@ -12,51 +12,101 @@ import com.ielts.cmds.ms.lpr_mx.BaseEventErrorsErrorListInner;
 import com.ielts.cmds.v2.infrastructure.event.context.ThreadLocalHeaderContext;
 import com.ielts.cmds.v2.rbac.api.service.RBACService;
 import jakarta.validation.ConstraintViolation;
-import lombok.AllArgsConstructor;
-import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
-import static com.ielts.cmds.lpr.infrastructure.utils.AllocationGroupConstants.AG_VIEW_ERROR_CODE;
-import static com.ielts.cmds.lpr.infrastructure.utils.AllocationGroupConstants.UNAUTHORISED_TO_VIEW_ALLOCATION_GROUP;
-import static com.ielts.cmds.lpr.infrastructure.utils.AllocationGroupConstants.VIEW_ALLOCATION_GROUP_PERMISSION_FAILURE;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.*;
 
+@ExtendWith(MockitoExtension.class)
+class ViewSingleAllocationGroupDomainServiceTest {
 
-@Slf4j
-@AllArgsConstructor
-@Service
-public class ViewSingleAllocationGroupDomainService {
-    private final RBACService rbacService;
+    @Mock
+    private RBACService rbacService;
 
-    private final LPRCommonUtils lprCommonUtils;
+    @Mock
+    private LPRCommonUtils lprCommonUtils;
 
-    private final AllocationGroupMapper allocationGroupMapper;
+    @Mock
+    private AllocationGroupMapper allocationGroupMapper;
 
-    private final AllocationGroupRepository allocationGroupRepository;
+    @Mock
+    private AllocationGroupRepository allocationGroupRepository;
 
-    @SneakyThrows
-        public AllocationGroupResponseV1 viewAllocationGroup (UUID allocationGroupUuid){
-            log.debug("Inside Allocation Group Domain Service View All");
-            boolean isAuthorised = rbacService.isAuthorised(ThreadLocalHeaderContext.getContext().getXaccessToken(), AllocationGroupConstants.AG_VIEW);
+    @InjectMocks
+    private ViewSingleAllocationGroupDomainService viewSingleAllocationGroupDomainService;
 
-            if (!isAuthorised) {
-                Set<ConstraintViolation<Object>> authorizationViolations = lprCommonUtils.
-                        getSetForNullViolationOfEventBody(AG_VIEW_ERROR_CODE, UNAUTHORISED_TO_VIEW_ALLOCATION_GROUP);
-                List<BaseEventErrorsErrorListInner> authErrorResponse = allocationGroupMapper.generateLPRErrorResponse(authorizationViolations,
-                        AllocationGroupConstants.AG_VIEW);
-                log.error("View allocation group permission failure {}", VIEW_ALLOCATION_GROUP_PERMISSION_FAILURE);
-                throw new UnauthorizedException(authErrorResponse, VIEW_ALLOCATION_GROUP_PERMISSION_FAILURE);
-            }
+    private final UUID TEST_UUID = UUID.fromString("ba8584f7-8688-47c6-91d5-7ebb41d01d7f");
 
-            log.debug("Viewing allocation group");
-            AllocationGroup allocationGroupResponseV1Result = allocationGroupRepository.findById(allocationGroupUuid).orElseThrow(
-                    () -> new AllocationGroupNotFoundException("AllocationGroup with UUId"));
-            AllocationGroupResponseV1 allocationGroupResponseV1 = allocationGroupMapper
-                    .mapAllocationGroupV1ToAllocationGroup(allocationGroupResponseV1Result);
-            return allocationGroupResponseV1;
-        }
+    @Test
+    void viewAllocationGroup_WhenAuthorizedAndExists_ShouldReturnResponse() {
+        // Arrange
+        AllocationGroup mockEntity = new AllocationGroup();
+        AllocationGroupResponseV1 mockResponse = new AllocationGroupResponseV1();
+        
+        when(rbacService.isAuthorised(anyString(), anyString())).thenReturn(true);
+        when(allocationGroupRepository.findById(TEST_UUID)).thenReturn(Optional.of(mockEntity));
+        when(allocationGroupMapper.mapAllocationGroupV1ToAllocationGroup(mockEntity))
+            .thenReturn(mockResponse);
+
+        // Act
+        AllocationGroupResponseV1 result = viewSingleAllocationGroupDomainService.viewAllocationGroup(TEST_UUID);
+
+        // Assert
+        assertNotNull(result);
+        assertEquals(mockResponse, result);
+        verify(rbacService, times(1)).isAuthorised(anyString(), eq(AllocationGroupConstants.AG_VIEW));
+        verify(allocationGroupRepository, times(1)).findById(TEST_UUID);
     }
+
+    @Test
+    void viewAllocationGroup_WhenUnauthorized_ShouldThrowException() {
+        // Arrange
+        Set<ConstraintViolation<Object>> mockViolations = mock(Set.class);
+        List<BaseEventErrorsErrorListInner> mockErrors = mock(List.class);
+        
+        when(rbacService.isAuthorised(anyString(), anyString())).thenReturn(false);
+        when(lprCommonUtils.getSetForNullViolationOfEventBody(anyString(), anyString()))
+            .thenReturn(mockViolations);
+        when(allocationGroupMapper.generateLPRErrorResponse(mockViolations, AllocationGroupConstants.AG_VIEW))
+            .thenReturn(mockErrors);
+
+        // Act & Assert
+        UnauthorizedException exception = assertThrows(UnauthorizedException.class, 
+            () -> viewSingleAllocationGroupDomainService.viewAllocationGroup(TEST_UUID));
+        
+        assertEquals(VIEW_ALLOCATION_GROUP_PERMISSION_FAILURE, exception.getMessage());
+        verify(rbacService, times(1)).isAuthorised(anyString(), eq(AllocationGroupConstants.AG_VIEW));
+    }
+
+    @Test
+    void viewAllocationGroup_WhenNotFound_ShouldThrowException() {
+        // Arrange
+        when(rbacService.isAuthorised(anyString(), anyString())).thenReturn(true);
+        when(allocationGroupRepository.findById(TEST_UUID)).thenReturn(Optional.empty());
+
+        // Act & Assert
+        AllocationGroupNotFoundException exception = assertThrows(AllocationGroupNotFoundException.class, 
+            () -> viewSingleAllocationGroupDomainService.viewAllocationGroup(TEST_UUID));
+        
+        assertTrue(exception.getMessage().contains("AllocationGroup with UUId"));
+        verify(allocationGroupRepository, times(1)).findById(TEST_UUID);
+    }
+
+    @Test
+    void viewAllocationGroup_WhenNullUuid_ShouldThrowException() {
+        // Act & Assert
+        assertThrows(IllegalArgumentException.class, 
+            () -> viewSingleAllocationGroupDomainService.viewAllocationGroup(null));
+    }
+}
