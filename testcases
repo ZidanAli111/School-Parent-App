@@ -1,1 +1,87 @@
-v
+✅ Story 1: IOP Product Activation and Visibility
+
+Before:
+The IOP (IELTS on Paper) product was not integrated into CMDS or visible in the UI, which made it impossible for stakeholders to configure, track, or manage it like other IELTS products.
+
+What We Did:
+
+    Activated IOP product in lower and production environments.
+
+    Published the product to the ORS system so it could be consumed downstream.
+
+    Updated the LPR.PRODUCT table to ensure the correct format (PB) was set.
+
+    Made IOP visible in the CMDS UI's product management screen.
+
+Impact:
+The IOP product is now fully functional and discoverable within CMDS, allowing operational teams to manage it just like other existing products.
+
+🧾 [Jira: IOP-116, IOP-117, IOP-119, IOP-1154]
+✅ Story 2: Streamlined Product Authorization Management
+
+Before:
+Product authorizations had to be manually added or removed for each Test Centre and their Physical Buildings. This was time-consuming, error-prone, and inconsistent.
+
+What We Did:
+
+    Enabled the CMDS UI to view and configure IOP product authorizations.
+
+    Developed functionality to configure products for both Test Centres and their PBs.
+
+    Implemented cascade logic so product approvals at the Test Centre level now automatically apply to all associated PBs.
+
+Impact:
+Significantly reduced manual work. One configuration at the TC level now efficiently cascades to all related PBs, ensuring faster and consistent product setup.
+
+🧾 [Jira: IOP-138, IOP-159, IOP-118, IOP-143]
+✅ Story 3: Allocation Group Landing Page and Role-Based Access
+
+Before:
+There was no centralized interface to manage allocation groups, nor a system to control user access to allocation functionalities. This raised concerns over both usability and security.
+
+What We Did:
+
+    Built a new landing page for Allocation Groups in CMDS.
+
+    Set up RBAC (Role-Based Access Control) to define which users can access or perform actions related to allocation groups.
+
+    Implemented CRUD permissions to control Create, Read, Update, and Delete operations based on user roles.
+
+Impact:
+Users now have a centralized, secure, and intuitive interface to manage allocation groups, and permissions are tightly aligned with user roles to prevent unauthorized access.
+
+🧾 [Jira: IOP-160, IOP-466, IOP-476]
+✅ Story 4: Full Lifecycle Management of Allocation Groups
+
+Before:
+There was no functionality to manage allocation groups — users couldn’t create, view, or edit groups from the UI, leading to operational inefficiencies.
+
+What We Did:
+
+    Developed features to create new allocation groups with key inputs like name and status.
+
+    Built a view page showing a list of all allocation groups and their assignments.
+
+    Added the ability to view details of a specific allocation group by selecting it from the list.
+
+    Enabled edit functionality, allowing users to update allocation group details, as long as they have the right permissions.
+
+Impact:
+Users now have end-to-end control over allocation groups — from creation to update — directly in the UI, all governed by a permission model.
+
+🧾 [Jira: IOP-103, IOP-102, IOP-104, IOP-105, IOP-966]
+✅ Story 5: Foundational Enhancements and System Integration Support
+
+Before:
+There were integration dependencies on external systems like Cambs, and foundational work was needed to support upcoming CUPA DS features.
+
+What We Did:
+
+    Provided Test Centre dispatch address details to Cambs System to enable communication between systems.
+
+    Initiated foundational development for CUPA DS integration to support future functionality.
+
+Impact:
+These foundational stories ensure smoother future system interactions and data flow, reducing future rework and setting up for scalability.
+
+🧾 [Jira: IOP-124, IOP-214]
